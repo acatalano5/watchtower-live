@@ -89,20 +89,24 @@ function initMap(){
       showCoverageOnHover:false,
       zoomToBoundsOnClick:false,
       spiderfyOnMaxZoom:false,
+      spiderfyOnEveryZoom:false,
       removeOutsideVisibleBounds:true,
-      maxClusterRadius:zoom=>zoom<=2?62:zoom<=4?48:zoom<=6?38:30,
+      disableClusteringAtZoom:6,
+      maxClusterRadius:zoom=>zoom<=2?54:zoom<=4?42:32,
       iconCreateFunction:c=>L.divIcon({html:`<div class="cluster-icon">${c.getChildCount()}</div>`,className:'',iconSize:[40,40]})
     });
     state.cluster.on('clusterclick',ev=>{
       const cluster=ev.layer;
       if(!cluster||!state.map)return;
-      const bounds=cluster.getBounds();
-      const current=state.map.getZoom();
-      const target=Math.min(state.map.getMaxZoom(),Math.max(current+2,5));
-      if(bounds&&bounds.isValid()&&!bounds.getNorthEast().equals(bounds.getSouthWest())){
-        state.map.fitBounds(bounds.pad(.22),{padding:[36,36],maxZoom:Math.min(target,8),animate:true,duration:.45});
-      }else{
-        state.map.setView(cluster.getLatLng(),Math.min(target,8),{animate:true});
+      const children=cluster.getAllChildMarkers?cluster.getAllChildMarkers():[];
+      const points=children.map(m=>m.getLatLng()).filter(ll=>ll&&Number.isFinite(ll.lat)&&Number.isFinite(ll.lng));
+      if(points.length>1){
+        const bounds=L.latLngBounds(points);
+        // Fit the real child-event geography, not the synthetic cluster centroid.
+        // Cap at zoom 6 so clustering immediately dissolves into individual markers.
+        state.map.fitBounds(bounds.pad(.12),{paddingTopLeft:[28,72],paddingBottomRight:[28,48],maxZoom:6,animate:true,duration:.35});
+      }else if(points.length===1){
+        state.map.setView(points[0],6,{animate:true});
       }
       if(ev.originalEvent){
         L.DomEvent.stopPropagation(ev.originalEvent);
