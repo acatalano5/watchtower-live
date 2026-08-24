@@ -1,2 +1,16 @@
-WATCHTOWER v0.31 mobile map fix
-Replace index.html and assets/ in watchtower-live. Commit to main, then hard-refresh the site.
+WATCHTOWER v0.33 — MOBILE MAP / DATELINE FIX
+
+Replace only these visible files in watchtower-live:
+  index.html
+  assets/app.js
+  assets/styles.css
+  assets/favicon.svg
+
+Do NOT delete or replace your existing .nojekyll file.
+
+Key fixes:
+- antimeridian-safe spherical geometry centroids (+179/-179 no longer average to 0)
+- invalid/Null Island coordinates are suppressed from map display
+- mobile uses direct Leaflet canvas markers instead of MarkerCluster
+- mobile map starts at a wider world view and uses normal pinch/+/- navigation
+- desktop retains clustering with Leaflet's native zoom-to-bounds behavior

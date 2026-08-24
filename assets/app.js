@@ -4,7 +4,7 @@
 const $ = id => document.getElementById(id);
 const state = {
   events: [], sources: [], activeCats: new Set(), hours: 168, minSeverity: 1, query: '',
-  map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false
+  map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false, mobileMap: false
 };
 
 const CAT = {
@@ -28,7 +28,26 @@ function rel(v){const t=parseTime(v);if(!t)return'Time n/a';const s=(Date.now()-
 function meta(c){return CAT[c]||{label:String(c||'Other'),color:'#8ca0a5'};}
 function sevLabel(x){return x>=5?'Critical':x>=4?'High':x>=3?'Elevated':x>=2?'Watch':'Low';}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
-function centroid(geometry){if(!geometry)return[null,null];const coords=geometry.coordinates;if(!coords)return[null,null];if(geometry.type==='Point'&&Array.isArray(coords))return[num(coords[1]),num(coords[0])];const pts=[];const walk=x=>{if(Array.isArray(x)&&x.length>=2&&typeof x[0]==='number'&&typeof x[1]==='number')pts.push([x[1],x[0]]);else if(Array.isArray(x))x.forEach(walk);};walk(coords);if(!pts.length)return[null,null];return[pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];}
+function centroid(geometry){
+  if(!geometry)return[null,null];
+  const coords=geometry.coordinates;if(!coords)return[null,null];
+  if(geometry.type==='Point'&&Array.isArray(coords)){
+    const lat=num(coords[1]),lon=num(coords[0]);
+    return validCoord(lat,lon)?[lat,lon]:[null,null];
+  }
+  const pts=[];
+  const walk=x=>{if(Array.isArray(x)&&x.length>=2&&typeof x[0]==='number'&&typeof x[1]==='number'){const lat=num(x[1]),lon=num(x[0]);if(validCoord(lat,lon))pts.push([lat,lon]);}else if(Array.isArray(x))x.forEach(walk);};
+  walk(coords);if(!pts.length)return[null,null];
+  // Spherical mean: unlike arithmetic longitude averaging, +179 and -179 stay near the Date Line
+  // instead of producing a bogus 0-degree longitude marker over Africa/Atlantic.
+  let x=0,y=0,z=0;
+  for(const [lat,lon] of pts){const phi=lat*Math.PI/180,lam=lon*Math.PI/180,cp=Math.cos(phi);x+=cp*Math.cos(lam);y+=cp*Math.sin(lam);z+=Math.sin(phi);}
+  x/=pts.length;y/=pts.length;z/=pts.length;
+  const hyp=Math.hypot(x,y);if(Math.hypot(hyp,z)<1e-6)return[null,null];
+  const lat=Math.atan2(z,hyp)*180/Math.PI,lon=Math.atan2(y,x)*180/Math.PI;
+  return validCoord(lat,lon)?[lat,lon]:[null,null];
+}
+function validCoord(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-85&&lat<=85&&lon>=-180&&lon<=180&&!(Math.abs(lat)<.0001&&Math.abs(lon)<.0001);}
 function fetchJson(url,opts={}){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),TIMEOUT);return fetch(url,{...opts,signal:ctrl.signal,headers:{Accept:'application/json, application/geo+json;q=0.9',...(opts.headers||{})},cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}).finally(()=>clearTimeout(timer));}
 function source(name,fn){const rec={name,status:'loading',count:0,error:'',ms:0};state.sources.push(rec);renderSources();const start=performance.now();return fn().then(events=>{rec.status='ok';rec.count=events.length;rec.ms=Math.round(performance.now()-start);return events;}).catch(err=>{rec.status='bad';rec.error=err?.name==='AbortError'?'timeout':String(err?.message||err).slice(0,70);rec.ms=Math.round(performance.now()-start);return[];}).finally(renderSources);}
 
@@ -75,51 +94,54 @@ const FALLBACK = [
   {id:'demo-storm',title:'Demonstration tropical system',category:'storm',severity:3,lat:18.4,lon:-62.8,updated:new Date(Date.now()-3.4*3600000).toISOString(),source:'DEMO FALLBACK',url:'',summary:'Live source connection failed. Demonstration marker only.',region:'Atlantic',kind:'event'}
 ];
 
-function dedupe(events){const seen=new Set();return events.filter(e=>{if(!e||!e.id)return false;const key=e.id;if(seen.has(key))return false;seen.add(key);e.severity=clamp(Number(e.severity)||1,1,5);e.lat=num(e.lat);e.lon=num(e.lon);e.updated=toIso(e.updated);return true;});}
+function dedupe(events){const seen=new Set();return events.filter(e=>{if(!e||!e.id)return false;const key=e.id;if(seen.has(key))return false;seen.add(key);e.severity=clamp(Number(e.severity)||1,1,5);e.lat=num(e.lat);e.lon=num(e.lon);if(!validCoord(e.lat,e.lon)){e.lat=null;e.lon=null;}e.updated=toIso(e.updated);return true;});}
 function filtered(){const q=state.query.trim().toLowerCase(),now=Date.now(),win=state.hours*3600000;return state.events.filter(e=>{if(!state.activeCats.has(e.category))return false;if(e.severity<state.minSeverity)return false;const t=parseTime(e.updated);if(e.kind!=='schedule'&&t&&now-t>win)return false;if(q&&!`${e.title} ${e.region} ${e.source} ${e.summary}`.toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b.severity-a.severity)||(parseTime(b.updated)-parseTime(a.updated)));}
 
 function initMap(){
   if(!window.L){$('map').innerHTML='<div class="map-loading"><strong>Map library unavailable</strong><span>The event stream remains available.</span></div>';return;}
-  state.map=L.map('map',{worldCopyJump:true,minZoom:2,maxZoom:11,zoomControl:true,preferCanvas:true,attributionControl:true}).setView(VIEW.world[0],VIEW.world[1]);
+  state.mobileMap=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+  state.map=L.map('map',{worldCopyJump:true,minZoom:state.mobileMap?1:2,maxZoom:11,zoomControl:true,preferCanvas:true,attributionControl:true}).setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);
   const base=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'});
   const labels=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,pane:'overlayPane'});
   base.addTo(state.map);labels.addTo(state.map);
-  if(window.L.markerClusterGroup){
+
+  // Touch devices intentionally do NOT use MarkerCluster. Direct canvas markers avoid
+  // spiderfy/centroid tap behavior entirely and keep pinch/drag navigation predictable.
+  if(state.mobileMap){
+    state.cluster=L.layerGroup();
+  }else if(window.L.markerClusterGroup){
     state.cluster=L.markerClusterGroup({
       showCoverageOnHover:false,
-      zoomToBoundsOnClick:false,
+      zoomToBoundsOnClick:true,
       spiderfyOnMaxZoom:false,
       spiderfyOnEveryZoom:false,
       removeOutsideVisibleBounds:true,
-      disableClusteringAtZoom:6,
+      disableClusteringAtZoom:7,
       maxClusterRadius:zoom=>zoom<=2?54:zoom<=4?42:32,
       iconCreateFunction:c=>L.divIcon({html:`<div class="cluster-icon">${c.getChildCount()}</div>`,className:'',iconSize:[40,40]})
     });
-    state.cluster.on('clusterclick',ev=>{
-      const cluster=ev.layer;
-      if(!cluster||!state.map)return;
-      const children=cluster.getAllChildMarkers?cluster.getAllChildMarkers():[];
-      const points=children.map(m=>m.getLatLng()).filter(ll=>ll&&Number.isFinite(ll.lat)&&Number.isFinite(ll.lng));
-      if(points.length>1){
-        const bounds=L.latLngBounds(points);
-        // Fit the real child-event geography, not the synthetic cluster centroid.
-        // Cap at zoom 6 so clustering immediately dissolves into individual markers.
-        state.map.fitBounds(bounds.pad(.12),{paddingTopLeft:[28,72],paddingBottomRight:[28,48],maxZoom:6,animate:true,duration:.35});
-      }else if(points.length===1){
-        state.map.setView(points[0],6,{animate:true});
-      }
-      if(ev.originalEvent){
-        L.DomEvent.stopPropagation(ev.originalEvent);
-        L.DomEvent.preventDefault(ev.originalEvent);
-      }
-    });
-  } else state.cluster=L.layerGroup();
+  }else state.cluster=L.layerGroup();
   state.map.addLayer(state.cluster);
   if(window.ResizeObserver){const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}
 }
 function renderMap(events){
-  if(!state.map||!state.cluster)return;state.cluster.clearLayers();state.markers.clear();const mapped=events.filter(e=>e.lat!==null&&e.lon!==null&&Math.abs(e.lat)<=90&&Math.abs(e.lon)<=180);$('mappedCount').textContent=String(mapped.length);$('mapSignalCount').textContent=String(mapped.length);
-  mapped.slice(0,650).forEach(e=>{const m=meta(e.category);const icon=L.divIcon({className:'signal-icon',html:`<div class="signal-marker s${e.severity}" style="--cat:${m.color}"></div>`,iconSize:[18,18],iconAnchor:[9,9]});const marker=L.marker([e.lat,e.lon],{icon,title:e.title});marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>`);marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.cluster.addLayer(marker);});
+  if(!state.map||!state.cluster)return;
+  state.cluster.clearLayers();state.markers.clear();
+  const mapped=events.filter(e=>validCoord(e.lat,e.lon));
+  $('mappedCount').textContent=String(mapped.length);$('mapSignalCount').textContent=String(mapped.length);
+  mapped.slice(0,state.mobileMap?500:650).forEach(e=>{
+    const m=meta(e.category);let marker;
+    if(state.mobileMap){
+      const radius=e.severity>=5?7:e.severity>=4?6:e.severity>=3?5:4;
+      marker=L.circleMarker([e.lat,e.lon],{radius,color:m.color,weight:e.severity>=4?2:1.25,opacity:.95,fillColor:m.color,fillOpacity:e.severity>=4?.88:.68,bubblingMouseEvents:false});
+    }else{
+      const icon=L.divIcon({className:'signal-icon',html:`<div class="signal-marker s${e.severity}" style="--cat:${m.color}"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+      marker=L.marker([e.lat,e.lon],{icon,title:e.title});
+    }
+    marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>`);
+    marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.cluster.addLayer(marker);
+  });
+  $('mapHint').textContent=state.mobileMap?'Pinch or use +/- to zoom · tap a dot for details':'Select a marker for details';
 }
 function renderLayers(){const counts={};state.events.forEach(e=>counts[e.category]=(counts[e.category]||0)+1);const cats=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);$('layerList').innerHTML=cats.map(c=>{const m=meta(c),on=state.activeCats.has(c);return`<button type="button" class="layer-chip ${on?'':'off'}" data-cat="${esc(c)}" style="--cat:${m.color}"><i></i><span>${esc(m.label)}</span><b>${counts[c]}</b></button>`;}).join('');$('layerList').querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.cat;state.activeCats.has(c)?state.activeCats.delete(c):state.activeCats.add(c);renderAll();}));}
 function renderLegend(events){const seen=[];for(const e of events){if(!seen.includes(e.category))seen.push(e.category);if(seen.length>=6)break;}$('mapLegend').innerHTML=seen.map(c=>{const m=meta(c);return`<span class="legend-item" style="--cat:${m.color}"><i class="legend-dot"></i>${esc(m.label)}</span>`;}).join('');}

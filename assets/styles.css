@@ -26,7 +26,7 @@ footer{max-width:1920px;margin:0 auto;padding:16px clamp(14px,2vw,28px) 24px;dis
 @media(max-width:430px){.version{display:none}.overview-strip{grid-template-columns:1fr 1fr}.stat{min-height:80px}.stat strong{font-size:25px}.map-stage{height:420px}.source-grid{grid-template-columns:1fr}.timeline{gap:2px;padding-left:8px;padding-right:8px}.timeline-col small{font-size:7px}.map-summary{top:8px;left:8px}.map-hint{left:8px;bottom:8px}.top-actions{gap:6px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 
-/* v0.31 mobile map interaction: clusters zoom on tap rather than spiderfying. */
+/* v0.33 mobile map interaction: direct touch markers; no mobile clustering. */
 @media(max-width:700px){
   .cluster-icon{width:42px;height:42px;font-size:12px;box-shadow:0 0 0 6px rgba(84,210,202,.08),0 0 22px rgba(84,210,202,.16)}
   .leaflet-marker-icon{touch-action:manipulation}
