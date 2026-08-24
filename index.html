@@ -3,159 +3,165 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#061014">
-  <meta name="description" content="WATCHTOWER — public-source global operational picture.">
-  <title>WATCHTOWER // Operational Picture</title>
+  <meta name="theme-color" content="#071014">
+  <meta name="description" content="WATCHTOWER — public-source global situational awareness.">
+  <title>WATCHTOWER // Global Situation</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://basemaps.cartocdn.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <link rel="stylesheet" href="./assets/styles.css">
 </head>
 <body>
-  <div class="scanline" aria-hidden="true"></div>
-  <div class="shell" id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-emblem" aria-hidden="true"><span></span><span></span><span></span><b>W</b></div>
-        <div class="brand-copy">
-          <div class="eyebrow">PUBLIC SOURCE // COMMON OPERATING PICTURE</div>
-          <h1>WATCHTOWER</h1>
-          <div class="subtitle">GLOBAL EVENT AWARENESS <span>v0.2</span></div>
-        </div>
+<div class="app-shell" id="app">
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="mark" aria-hidden="true"><span></span><b>W</b></div>
+      <div>
+        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.3</span></div>
+        <p>Public-source global situational awareness</p>
       </div>
-      <div class="top-actions">
-        <div class="status-chip loading" id="liveStatus"><i></i><span>SYNCING</span></div>
-        <div class="clock"><small>UTC</small><strong id="utcClock">--:--:--</strong></div>
-        <button class="square-button" id="refreshBtn" type="button" title="Refresh all live sources" aria-label="Refresh all live sources">↻</button>
-      </div>
-    </header>
+    </div>
+    <div class="top-actions">
+      <div class="live-pill loading" id="liveStatus"><i></i><span>Connecting</span></div>
+      <div class="clock-block"><span>UTC</span><strong id="utcClock">--:--:--</strong></div>
+      <button id="refreshBtn" class="icon-btn" type="button" aria-label="Refresh public sources" title="Refresh public sources">↻</button>
+    </div>
+  </header>
 
-    <main>
-      <section class="metrics" aria-label="Operational summary">
-        <article class="metric metric-primary">
-          <div class="metric-label">VISIBLE SIGNALS</div>
-          <div class="metric-value" id="visibleCount">0</div>
-          <div class="metric-note" id="visibleNote">loading sources</div>
-        </article>
-        <article class="metric">
-          <div class="metric-label">PRIORITY</div>
-          <div class="metric-value alert" id="priorityCount">0</div>
-          <div class="metric-note">high / critical</div>
-        </article>
-        <article class="metric">
-          <div class="metric-label">MAPPED</div>
-          <div class="metric-value" id="mappedCount">0</div>
-          <div class="metric-note">geolocated signals</div>
-        </article>
-        <article class="metric">
-          <div class="metric-label">SOURCE HEALTH</div>
-          <div class="metric-value" id="sourceHealth">0/0</div>
-          <div class="metric-note" id="sourceNote">connecting</div>
-        </article>
-        <article class="metric metric-wide">
-          <div class="metric-label">GLOBAL POSTURE</div>
-          <div class="posture-line"><strong id="postureLabel">CALCULATING</strong><span id="postureScore">--</span></div>
-          <div class="posture-track"><i id="postureBar"></i></div>
-        </article>
-      </section>
-
-      <section class="command-strip" aria-label="Filters and search">
-        <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Search signals, regions, sources…" autocomplete="off"></label>
-        <div class="segmented" id="timeFilters" aria-label="Observation window">
-          <button type="button" data-hours="6">6H</button>
-          <button type="button" data-hours="24">24H</button>
-          <button type="button" data-hours="168" class="active">7D</button>
-          <button type="button" data-hours="720">30D</button>
+  <main>
+    <section class="overview-strip" aria-label="Operational overview">
+      <div class="posture-card">
+        <div class="posture-copy">
+          <span>Global posture</span>
+          <strong id="postureLabel">Building picture</strong>
         </div>
-        <label class="severity-control">MIN SEV
-          <select id="severityFilter" aria-label="Minimum severity">
-            <option value="1">ALL</option><option value="2">WATCH+</option><option value="3">ELEVATED+</option><option value="4">HIGH+</option>
-          </select>
-        </label>
-        <button class="ghost-button" id="resetBtn" type="button">RESET</button>
-      </section>
+        <div class="posture-score"><b id="postureScore">--</b><small>/100</small></div>
+        <div class="posture-track"><i id="postureBar"></i></div>
+      </div>
+      <div class="stat"><span>Signals</span><strong id="visibleCount">—</strong><small id="visibleNote">syncing</small></div>
+      <div class="stat priority"><span>Priority</span><strong id="priorityCount">—</strong><small>high + critical</small></div>
+      <div class="stat"><span>Mapped</span><strong id="mappedCount">—</strong><small>geolocated</small></div>
+      <div class="stat"><span>Sources</span><strong id="sourceHealth">0/0</strong><small id="sourceNote">connecting</small></div>
+    </section>
 
-      <section class="ops-grid">
-        <aside class="rail rail-left">
-          <section class="panel layers-panel">
-            <div class="panel-head"><div><small>LAYERS</small><h2>Signal Board</h2></div><span id="layerActive">0 ACTIVE</span></div>
-            <div id="layerList" class="layers"></div>
-          </section>
+    <section class="control-bar" aria-label="Filters">
+      <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Search places, events, sources…" autocomplete="off"></label>
+      <div class="time-pills" id="timeFilters" aria-label="Time window">
+        <button type="button" data-hours="6">6h</button>
+        <button type="button" data-hours="24">24h</button>
+        <button type="button" data-hours="168" class="active">7d</button>
+        <button type="button" data-hours="720">30d</button>
+      </div>
+      <label class="severity">Severity
+        <select id="severityFilter" aria-label="Minimum severity">
+          <option value="1">All</option>
+          <option value="2">Watch +</option>
+          <option value="3">Elevated +</option>
+          <option value="4">High +</option>
+        </select>
+      </label>
+      <button id="resetBtn" class="text-btn" type="button">Reset</button>
+    </section>
 
-          <section class="panel sitrep-panel">
-            <div class="panel-head"><div><small>AUTO SITREP</small><h2>Current Picture</h2></div><span class="machine-tag">LOCAL</span></div>
-            <div class="sitrep-body" id="sitrepText">Building operational summary from current signals…</div>
-            <div class="sitrep-caveat">Generated from visible public-source records; not an intelligence assessment.</div>
-          </section>
-        </aside>
-
-        <section class="panel map-panel">
-          <div class="map-head">
-            <div><small>COMMON OPERATING PICTURE</small><h2>Global Event Map</h2></div>
-            <div class="map-presets" id="mapPresets">
-              <button type="button" class="active" data-view="world">WORLD</button>
-              <button type="button" data-view="conus">CONUS</button>
-              <button type="button" data-view="mena">MENA</button>
-              <button type="button" data-view="europe">EUROPE</button>
-              <button type="button" data-view="pacific">PACIFIC</button>
-            </div>
+    <section class="workspace">
+      <article class="map-card">
+        <div class="map-header">
+          <div>
+            <span class="kicker">COMMON OPERATING PICTURE</span>
+            <h2>Global activity</h2>
           </div>
-          <div class="map-wrap">
-            <div id="map" role="application" aria-label="Interactive public-source event map"></div>
-            <div class="map-overlay top-left"><span class="map-crosshair">＋</span><div><b id="mapSignalCount">0</b><small>MAPPED SIGNALS</small></div></div>
-            <div class="map-overlay bottom-left" id="mapHint">SELECT A MARKER OR FEED ITEM</div>
+          <div class="view-pills" id="mapPresets" aria-label="Map region presets">
+            <button type="button" data-view="world" class="active">World</button>
+            <button type="button" data-view="conus">U.S.</button>
+            <button type="button" data-view="mena">MENA</button>
+            <button type="button" data-view="europe">Europe</button>
+            <button type="button" data-view="pacific">Pacific</button>
           </div>
-          <div class="map-legend" id="mapLegend"></div>
+        </div>
+
+        <div class="layer-scroll" id="layerList" aria-label="Map layers">
+          <div class="layer-skeleton"></div><div class="layer-skeleton"></div><div class="layer-skeleton"></div><div class="layer-skeleton"></div>
+        </div>
+
+        <div class="map-stage">
+          <div id="map" aria-label="Interactive event map">
+            <div class="map-loading"><div class="radar-loader"><i></i><i></i></div><strong>Building global picture</strong><span>Connecting to public sources…</span></div>
+          </div>
+          <div class="map-vignette" aria-hidden="true"></div>
+          <div class="map-summary"><strong id="mapSignalCount">0</strong><span>signals on map</span></div>
+          <div class="map-hint" id="mapHint">Select a marker for details</div>
+        </div>
+
+        <div class="map-footer">
+          <div id="mapLegend" class="map-legend"></div>
+          <div class="map-note">Reporting indicates source publication, not independent verification.</div>
+        </div>
+      </article>
+
+      <aside class="intel-column">
+        <section class="brief-card">
+          <div class="section-heading">
+            <div><span class="kicker">WATCH BRIEF</span><h2>What matters now</h2></div>
+            <span class="local-badge">AUTO</span>
+          </div>
+          <div class="brief-body" id="sitrepText">
+            <div class="brief-skeleton wide"></div><div class="brief-skeleton"></div><div class="brief-skeleton mid"></div>
+          </div>
+          <p class="brief-note">Automated summary of visible public-source records. Not an intelligence assessment.</p>
         </section>
 
-        <aside class="panel rail-right">
-          <div class="panel-head feed-head"><div><small>EVENT STREAM</small><h2>Latest Signals</h2></div><span id="feedCount">0 SHOWN</span></div>
-          <div class="feed" id="eventFeed" aria-live="polite"></div>
-        </aside>
-      </section>
-
-      <section class="lower-grid">
-        <section class="panel timeline-panel">
-          <div class="panel-head"><div><small>TEMPO</small><h2>24-Hour Signal Activity</h2></div><span id="tempoLabel">0 EVENTS</span></div>
-          <div id="timeline" class="timeline" aria-label="Signal activity by hour"></div>
+        <section class="feed-card">
+          <div class="section-heading feed-heading">
+            <div><span class="kicker">LIVE STREAM</span><h2>Latest signals</h2></div>
+            <span id="feedCount">syncing</span>
+          </div>
+          <div class="feed" id="eventFeed" aria-live="polite">
+            <div class="feed-placeholder"></div><div class="feed-placeholder"></div><div class="feed-placeholder"></div><div class="feed-placeholder"></div>
+          </div>
         </section>
+      </aside>
+    </section>
 
-        <section class="panel priority-panel">
-          <div class="panel-head"><div><small>WATCH FLOOR</small><h2>Priority Queue</h2></div><span>RANKED</span></div>
-          <div id="priorityQueue" class="priority-list"></div>
-        </section>
-      </section>
+    <section class="insight-grid">
+      <article class="insight-card tempo-card">
+        <div class="section-heading"><div><span class="kicker">TEMPO</span><h2>24-hour activity</h2></div><span id="tempoLabel">—</span></div>
+        <div class="timeline" id="timeline"></div>
+      </article>
 
-      <section class="panel source-panel">
-        <div class="panel-head"><div><small>COLLECTORS</small><h2>Source Health</h2></div><span id="lastRefresh">NOT YET SYNCED</span></div>
-        <div class="source-grid" id="sourceGrid"></div>
-      </section>
-    </main>
+      <article class="insight-card priority-card">
+        <div class="section-heading"><div><span class="kicker">WATCH FLOOR</span><h2>Priority queue</h2></div><span>ranked</span></div>
+        <div class="priority-list" id="priorityQueue"><div class="empty-state">Waiting for current signals…</div></div>
+      </article>
 
-    <footer>
-      <span>WATCHTOWER v0.2 // OPERATIONAL PICTURE</span>
-      <span>PUBLIC DATA ONLY · REPORTING ≠ VERIFICATION</span>
-      <span>NOT AN OFFICIAL GOVERNMENT PRODUCT</span>
-    </footer>
+      <article class="insight-card sources-card">
+        <div class="section-heading"><div><span class="kicker">COLLECTORS</span><h2>Source health</h2></div><span id="lastRefresh">not synced</span></div>
+        <div class="source-grid" id="sourceGrid"><div class="empty-state">Connecting to public sources…</div></div>
+      </article>
+    </section>
+  </main>
 
-    <aside class="drawer" id="detailDrawer" aria-hidden="true">
-      <button class="drawer-close" id="drawerClose" type="button" aria-label="Close event details">×</button>
-      <div class="drawer-topline"><span id="drawerCategory">SIGNAL</span><b id="drawerSeverity">WATCH</b></div>
-      <h3 id="drawerTitle">Signal details</h3>
-      <div class="drawer-meta" id="drawerMeta"></div>
-      <div class="drawer-coords" id="drawerCoords"></div>
-      <p id="drawerSummary"></p>
-      <a id="drawerLink" href="#" target="_blank" rel="noopener noreferrer">OPEN PRIMARY / SOURCE PAGE ↗</a>
-    </aside>
+  <footer>
+    <span>WATCHTOWER · public data only</span>
+    <span>Sources can fail, lag, duplicate, or misreport events</span>
+    <span>Not an official government product</span>
+  </footer>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-  <script src="./assets/app.js" defer></script>
+  <aside class="detail-panel" id="detailDrawer" aria-hidden="true">
+    <button class="detail-close" id="drawerClose" type="button" aria-label="Close details">×</button>
+    <div class="detail-tags"><span id="drawerCategory">SIGNAL</span><b id="drawerSeverity">WATCH</b></div>
+    <h3 id="drawerTitle">Signal details</h3>
+    <div class="detail-meta" id="drawerMeta"></div>
+    <div class="detail-coords" id="drawerCoords"></div>
+    <p id="drawerSummary"></p>
+    <a id="drawerLink" href="#" target="_blank" rel="noopener noreferrer">Open source page ↗</a>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="./assets/app.js" defer></script>
 </body>
 </html>

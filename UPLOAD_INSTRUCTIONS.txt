@@ -1,13 +1,9 @@
-WATCHTOWER v0.2 — REPLACEMENT UPLOAD
+WATCHTOWER v0.3 — GitHub Pages replacement
 
-1. Extract this ZIP.
-2. Open the public GitHub repository that currently hosts watchtower-live.
-3. Delete/replace the old index.html and assets folder with the files from THIS folder.
-4. Keep .nojekyll at the repo root.
-5. Upload index.html, .nojekyll, assets/, and data/ to the repository root.
-6. Commit directly to main.
-7. Wait roughly 30–90 seconds for GitHub Pages to refresh.
-8. Hard refresh the website (Ctrl+F5) if the old version remains cached.
+1) Extract this ZIP.
+2) Open your public watchtower-live GitHub repository.
+3) Replace the existing index.html, .nojekyll, and assets folder with the files from this package.
+4) Commit directly to main.
+5) Wait for GitHub Pages to redeploy, then hard refresh with Ctrl+F5.
 
-The page now refreshes no-key public feeds directly from the browser every 10 minutes.
-Some upstream providers may block browser CORS or rate-limit temporarily; the Source Health panel will show DEGRADED rather than breaking the site.
+No data or source directories are required for this version. The browser pulls public no-key feeds directly.
