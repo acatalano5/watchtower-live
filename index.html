@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071014">
+  <meta name="description" content="WATCHTOWER — global public-source event awareness dashboard.">
+  <title>WATCHTOWER // Global Event Awareness</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://basemaps.cartocdn.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+          <div class="eyebrow">PUBLIC DATA // OPEN SOURCE</div>
+          <h1>WATCHTOWER</h1>
+          <div class="subbrand">GLOBAL EVENT AWARENESS</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="live-chip" id="liveChip"><span class="live-dot"></span><span id="liveLabel">CONNECTING</span></div>
+        <div class="utc-clock" aria-label="UTC clock">
+          <span>UTC</span><strong id="utcClock">--:--:--</strong>
+        </div>
+        <button class="icon-button" id="refreshBtn" type="button" aria-label="Refresh data" title="Refresh data">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="overview-strip" aria-label="Watchtower status">
+        <article class="metric-card">
+          <div class="metric-label">VISIBLE EVENTS</div>
+          <div class="metric-value" id="visibleCount">0</div>
+          <div class="metric-foot" id="timeWindowLabel">within 7 days</div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">HIGH PRIORITY</div>
+          <div class="metric-value danger" id="highCount">0</div>
+          <div class="metric-foot">severity 4–5</div>
+        </article>
+        <article class="metric-card">
+          <div class="metric-label">SOURCES ONLINE</div>
+          <div class="metric-value" id="sourceCount">0/0</div>
+          <div class="metric-foot" id="sourceFoot">checking feeds</div>
+        </article>
+        <article class="metric-card wide-metric">
+          <div class="metric-label">LATEST REFRESH</div>
+          <div class="metric-value compact" id="refreshAge">--</div>
+          <div class="metric-foot" id="refreshTime">waiting for collector</div>
+        </article>
+      </section>
+
+      <section class="control-bar" aria-label="Filters">
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" placeholder="Search events, regions, sources…" autocomplete="off">
+        </div>
+        <div class="segmented" id="timeFilters" aria-label="Time window">
+          <button type="button" data-hours="6">6H</button>
+          <button type="button" data-hours="24">24H</button>
+          <button type="button" data-hours="168" class="active">7D</button>
+          <button type="button" data-hours="720">30D</button>
+        </div>
+        <button class="outline-button" id="resetBtn" type="button">RESET VIEW</button>
+      </section>
+
+      <section class="dashboard-grid">
+        <aside class="left-rail">
+          <section class="panel layers-panel">
+            <div class="panel-heading">
+              <div><span class="kicker">LAYERS</span><h2>Signal Board</h2></div>
+              <span class="tiny-label" id="layerCount">0 active</span>
+            </div>
+            <div class="layer-list" id="layerList"></div>
+          </section>
+
+          <section class="panel posture-panel">
+            <div class="panel-heading">
+              <div><span class="kicker">POSTURE</span><h2>Global Pulse</h2></div>
+            </div>
+            <div class="posture-orbit" aria-hidden="true">
+              <div class="orbit orbit-1"></div><div class="orbit orbit-2"></div><div class="orbit orbit-3"></div>
+              <div class="pulse-core"><span id="postureScore">--</span></div>
+            </div>
+            <div class="posture-copy">
+              <strong id="postureLabel">CALCULATING</strong>
+              <span id="postureText">Awaiting event stream.</span>
+            </div>
+          </section>
+        </aside>
+
+        <section class="map-panel panel">
+          <div class="map-toolbar">
+            <div>
+              <span class="kicker">COMMON OPERATING PICTURE</span>
+              <h2>Global Event Map</h2>
+            </div>
+            <div class="map-actions">
+              <button type="button" data-view="world" class="mini-button active">WORLD</button>
+              <button type="button" data-view="conus" class="mini-button">CONUS</button>
+            </div>
+          </div>
+          <div id="map" role="application" aria-label="Interactive event map"></div>
+          <div class="map-legend">
+            <span><i class="sev-dot sev-low"></i>LOW</span>
+            <span><i class="sev-dot sev-med"></i>MED</span>
+            <span><i class="sev-dot sev-high"></i>HIGH</span>
+            <span class="legend-note">Map points are public-source observations; news items may not be independently verified.</span>
+          </div>
+        </section>
+
+        <aside class="right-rail panel">
+          <div class="panel-heading feed-heading">
+            <div><span class="kicker">EVENT STREAM</span><h2>Latest Signals</h2></div>
+            <span class="tiny-label" id="feedCount">0 shown</span>
+          </div>
+          <div class="feed" id="eventFeed" aria-live="polite"></div>
+        </aside>
+      </section>
+
+      <section class="bottom-grid">
+        <section class="panel source-panel">
+          <div class="panel-heading">
+            <div><span class="kicker">COLLECTORS</span><h2>Source Health</h2></div>
+          </div>
+          <div class="source-grid" id="sourceGrid"></div>
+        </section>
+
+        <section class="panel intel-panel">
+          <div class="panel-heading">
+            <div><span class="kicker">WATCH FLOOR</span><h2>Priority Queue</h2></div>
+          </div>
+          <div id="priorityQueue" class="priority-queue"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <span>WATCHTOWER v0.1 // PUBLIC-SOURCE AWARENESS</span>
+      <span>Data: USGS · NASA EONET · NOAA/NWS · GDELT</span>
+      <span>Not an official government product.</span>
+    </footer>
+
+    <div class="detail-drawer" id="detailDrawer" aria-hidden="true">
+      <button class="drawer-close" id="drawerClose" type="button" aria-label="Close details">×</button>
+      <div class="drawer-kicker" id="drawerKicker">EVENT</div>
+      <h3 id="drawerTitle">Event title</h3>
+      <div class="drawer-meta" id="drawerMeta"></div>
+      <p id="drawerSummary"></p>
+      <a id="drawerLink" href="#" target="_blank" rel="noopener noreferrer">OPEN SOURCE ↗</a>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="./assets/app.js" defer></script>
+</body>
+</html>
