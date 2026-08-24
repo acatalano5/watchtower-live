@@ -85,7 +85,30 @@ function initMap(){
   const labels=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,pane:'overlayPane'});
   base.addTo(state.map);labels.addTo(state.map);
   if(window.L.markerClusterGroup){
-    state.cluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:46,spiderfyOnMaxZoom:true,removeOutsideVisibleBounds:true,iconCreateFunction:c=>L.divIcon({html:`<div class="cluster-icon">${c.getChildCount()}</div>`,className:'',iconSize:[38,38]})});
+    state.cluster=L.markerClusterGroup({
+      showCoverageOnHover:false,
+      zoomToBoundsOnClick:false,
+      spiderfyOnMaxZoom:false,
+      removeOutsideVisibleBounds:true,
+      maxClusterRadius:zoom=>zoom<=2?62:zoom<=4?48:zoom<=6?38:30,
+      iconCreateFunction:c=>L.divIcon({html:`<div class="cluster-icon">${c.getChildCount()}</div>`,className:'',iconSize:[40,40]})
+    });
+    state.cluster.on('clusterclick',ev=>{
+      const cluster=ev.layer;
+      if(!cluster||!state.map)return;
+      const bounds=cluster.getBounds();
+      const current=state.map.getZoom();
+      const target=Math.min(state.map.getMaxZoom(),Math.max(current+2,5));
+      if(bounds&&bounds.isValid()&&!bounds.getNorthEast().equals(bounds.getSouthWest())){
+        state.map.fitBounds(bounds.pad(.22),{padding:[36,36],maxZoom:Math.min(target,8),animate:true,duration:.45});
+      }else{
+        state.map.setView(cluster.getLatLng(),Math.min(target,8),{animate:true});
+      }
+      if(ev.originalEvent){
+        L.DomEvent.stopPropagation(ev.originalEvent);
+        L.DomEvent.preventDefault(ev.originalEvent);
+      }
+    });
   } else state.cluster=L.layerGroup();
   state.map.addLayer(state.cluster);
   if(window.ResizeObserver){const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}

@@ -25,3 +25,9 @@ footer{max-width:1920px;margin:0 auto;padding:16px clamp(14px,2vw,28px) 24px;dis
 @media(max-width:700px){.topbar{height:auto;min-height:68px;padding-top:9px;padding-bottom:9px}.brand-block p,.clock-block{display:none}.brand-row h1{font-size:17px}.live-pill{padding:0 9px}.overview-strip{grid-template-columns:1fr 1fr}.posture-card{grid-column:1/-1;grid-row:auto}.control-bar{flex-wrap:wrap}.search{flex-basis:100%}.time-pills{flex:1}.time-pills button{flex:1;padding:0 9px}.severity{flex:1}.severity select{flex:1}.map-header{align-items:flex-start;flex-direction:column}.view-pills{width:100%;overflow-x:auto}.view-pills button{flex:0 0 auto}.map-stage{height:470px}.intel-column{display:block}.brief-card{margin-bottom:8px}.feed-card{max-height:520px}.map-footer{align-items:flex-start;flex-direction:column}.map-note{text-align:left}.source-grid{grid-template-columns:1fr 1fr}.detail-panel{top:80px}.insight-card{min-height:190px}}
 @media(max-width:430px){.version{display:none}.overview-strip{grid-template-columns:1fr 1fr}.stat{min-height:80px}.stat strong{font-size:25px}.map-stage{height:420px}.source-grid{grid-template-columns:1fr}.timeline{gap:2px;padding-left:8px;padding-right:8px}.timeline-col small{font-size:7px}.map-summary{top:8px;left:8px}.map-hint{left:8px;bottom:8px}.top-actions{gap:6px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+/* v0.31 mobile map interaction: clusters zoom on tap rather than spiderfying. */
+@media(max-width:700px){
+  .cluster-icon{width:42px;height:42px;font-size:12px;box-shadow:0 0 0 6px rgba(84,210,202,.08),0 0 22px rgba(84,210,202,.16)}
+  .leaflet-marker-icon{touch-action:manipulation}
+}

@@ -1,9 +1,2 @@
-WATCHTOWER v0.3 — GitHub Pages replacement
-
-1) Extract this ZIP.
-2) Open your public watchtower-live GitHub repository.
-3) Replace the existing index.html, .nojekyll, and assets folder with the files from this package.
-4) Commit directly to main.
-5) Wait for GitHub Pages to redeploy, then hard refresh with Ctrl+F5.
-
-No data or source directories are required for this version. The browser pulls public no-key feeds directly.
+WATCHTOWER v0.31 mobile map fix
+Replace index.html and assets/ in watchtower-live. Commit to main, then hard-refresh the site.
