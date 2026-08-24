@@ -1,23 +1,13 @@
-WATCHTOWER - GitHub Pages direct upload package
+WATCHTOWER v0.2 — REPLACEMENT UPLOAD
 
-IMPORTANT: Extract this ZIP first. Upload the CONTENTS of this folder to the root of your GitHub repository. Do not upload the ZIP itself.
+1. Extract this ZIP.
+2. Open the public GitHub repository that currently hosts watchtower-live.
+3. Delete/replace the old index.html and assets folder with the files from THIS folder.
+4. Keep .nojekyll at the repo root.
+5. Upload index.html, .nojekyll, assets/, and data/ to the repository root.
+6. Commit directly to main.
+7. Wait roughly 30–90 seconds for GitHub Pages to refresh.
+8. Hard refresh the website (Ctrl+F5) if the old version remains cached.
 
-Expected repository root:
-  index.html
-  .nojekyll
-  assets/app.js
-  assets/styles.css
-  data/events.json
-
-For GitHub Free:
-1. Create a PUBLIC repository (example: watchtower-live).
-2. Add file -> Upload files.
-3. Drag the extracted files/folders above into the repository root and commit them to main.
-4. Settings -> Pages.
-5. Source: Deploy from a branch.
-6. Branch: main, Folder: /(root).
-7. Save.
-
-This package is the deployable front end only. It does not contain the private collector/build scripts or GitHub workflow from the development repository.
-
-NOTE: Because this version is direct/static, data/events.json will not automatically refresh unless it is replaced by a later build or another automation is added.
+The page now refreshes no-key public feeds directly from the browser every 10 minutes.
+Some upstream providers may block browser CORS or rate-limit temporarily; the Source Health panel will show DEGRADED rather than breaking the site.

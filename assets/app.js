@@ -1,318 +1,65 @@
 (() => {
-  'use strict';
+'use strict';
 
-  const state = {
-    raw: null,
-    events: [],
-    hours: 168,
-    query: '',
-    activeCats: new Set(),
-    map: null,
-    markers: [],
-    selectedId: null,
-    usingFallback: false,
-  };
+const state={events:[],sources:[],activeCats:new Set(),hours:168,minSeverity:1,query:'',map:null,cluster:null,markers:new Map(),selectedId:null,lastRefresh:null,loading:false};
+const $=id=>document.getElementById(id);
+const CAT={
+ earthquake:{label:'Earthquakes',color:'#e1b45f',symbol:'EQ'},wildfire:{label:'Wildfires',color:'#ef706b',symbol:'WF'},storm:{label:'Storms',color:'#6aaee8',symbol:'TC'},weather:{label:'Weather',color:'#72bdd9',symbol:'WX'},volcano:{label:'Volcanoes',color:'#df8962',symbol:'VO'},flood:{label:'Floods',color:'#70a9de',symbol:'FL'},security:{label:'Security Reporting',color:'#a99be8',symbol:'OS'},space:{label:'Space Launches',color:'#7fd1c5',symbol:'SP'},spaceweather:{label:'Space Weather',color:'#c798e8',symbol:'SW'},landslide:{label:'Landslides',color:'#b99b71',symbol:'LS'},drought:{label:'Drought',color:'#c9ad66',symbol:'DR'},ice:{label:'Ice',color:'#a5d9e6',symbol:'IC'},natural:{label:'Natural Events',color:'#79bf8b',symbol:'NE'},incident:{label:'Incidents',color:'#d897a4',symbol:'IN'},temperature:{label:'Temperature',color:'#d89b70',symbol:'HT'},atmosphere:{label:'Atmosphere',color:'#82b5aa',symbol:'AT'},snow:{label:'Snow',color:'#d3e8eb',symbol:'SN'},water:{label:'Water',color:'#6eb3d4',symbol:'WA'}
+};
+const VIEW={world:[[18,8],2],conus:[[38.4,-97],4],mena:[[29,42],4],europe:[[50,15],4],pacific:[[18,145],3]};
+const EONET_MAP={wildfires:'wildfire',severeStorms:'storm',volcanoes:'volcano',floods:'flood',landslides:'landslide',seaLakeIce:'ice',drought:'drought',dustHaze:'atmosphere',snow:'snow',tempExtremes:'temperature',waterColor:'water',manmade:'incident'};
+const GDACS_MAP={EQ:'earthquake',TC:'storm',FL:'flood',VO:'volcano',WF:'wildfire',DR:'drought'};
+const TIMEOUT=12000;
 
-  const CATEGORY_META = {
-    earthquake: { label: 'Earthquakes', color: '#e0b85b' },
-    wildfire:   { label: 'Wildfires', color: '#e36f68' },
-    storm:      { label: 'Severe Storms', color: '#7fc3dc' },
-    weather:    { label: 'Weather Alerts', color: '#7fc3dc' },
-    volcano:    { label: 'Volcanoes', color: '#d9876e' },
-    flood:      { label: 'Flooding', color: '#76aede' },
-    security:   { label: 'Security News', color: '#a89ce8' },
-    incident:   { label: 'Incidents', color: '#d99ca7' },
-    landslide:  { label: 'Landslides', color: '#b6a178' },
-    ice:        { label: 'Ice', color: '#a7d8e6' },
-    drought:    { label: 'Drought', color: '#c8b16d' },
-    atmosphere: { label: 'Atmosphere', color: '#92b9b2' },
-    snow:       { label: 'Snow', color: '#d8e7ea' },
-    temperature:{ label: 'Temperature', color: '#d79a71' },
-    water:      { label: 'Water', color: '#7fb9d3' },
-    natural:    { label: 'Natural Events', color: '#86bd8f' },
-  };
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function n(v){const x=Number(v);return Number.isFinite(x)?x:null;}
+function parseTime(v){const t=Date.parse(v||'');return Number.isFinite(t)?t:0;}
+function iso(v){const t=parseTime(v);return t?new Date(t).toISOString():new Date().toISOString();}
+function rel(v){const t=parseTime(v);if(!t)return'TIME N/A';const s=(Date.now()-t)/1000;if(s<0){const a=Math.abs(s);if(a<3600)return`T-${Math.ceil(a/60)}m`;if(a<86400)return`T-${Math.ceil(a/3600)}h`;return`T-${Math.ceil(a/86400)}d`;}if(s<60)return`${Math.floor(s)}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`;}
+function meta(c){return CAT[c]||{label:String(c||'Other'),color:'#91a8ac',symbol:'•'};}
+function sevLabel(x){return x>=5?'CRITICAL':x>=4?'HIGH':x>=3?'ELEVATED':x>=2?'WATCH':'LOW';}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function centroid(geometry){if(!geometry)return[null,null];const type=geometry.type,coords=geometry.coordinates;if(!coords)return[null,null];if(type==='Point'&&Array.isArray(coords))return[n(coords[1]),n(coords[0])];const pts=[];const walk=x=>{if(Array.isArray(x)&&x.length>=2&&typeof x[0]==='number'&&typeof x[1]==='number')pts.push([x[1],x[0]]);else if(Array.isArray(x))x.forEach(walk);};walk(coords);if(!pts.length)return[null,null];return[pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];}
+function fetchJson(url,opts={}){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),TIMEOUT);return fetch(url,{...opts,signal:ctrl.signal,headers:{Accept:'application/json, application/geo+json;q=0.9',...(opts.headers||{})},cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}).finally(()=>clearTimeout(timer));}
+function source(name,fn){const rec={name,status:'loading',count:0,error:'',ms:0};state.sources.push(rec);const start=performance.now();return fn().then(events=>{rec.status='ok';rec.count=events.length;rec.ms=Math.round(performance.now()-start);return events;}).catch(err=>{rec.status='bad';rec.error=err&&err.name==='AbortError'?'timeout':String(err.message||err).slice(0,80);rec.ms=Math.round(performance.now()-start);return[];}).finally(renderSources);}
 
-  const FALLBACK = {
-    sample: true,
-    generated_at: new Date().toISOString(),
-    version: '0.1.0-demo',
-    sources: [
-      { name: 'USGS', ok: false, count: 0 },
-      { name: 'NASA EONET', ok: false, count: 0 },
-      { name: 'NOAA / NWS', ok: false, count: 0 },
-      { name: 'GDELT', ok: false, count: 0 },
-    ],
-    events: [
-      { id:'demo-1', title:'Demo seismic event', category:'earthquake', severity:4, lat:35.7, lon:139.7, updated:new Date(Date.now()-42*60000).toISOString(), source:'DEMO DATA', summary:'Live collector unavailable. This marker demonstrates WATCHTOWER event styling.', region:'Japan', kind:'event' },
-      { id:'demo-2', title:'Demo wildfire perimeter', category:'wildfire', severity:3, lat:38.6, lon:-121.4, updated:new Date(Date.now()-2.2*3600000).toISOString(), source:'DEMO DATA', summary:'Live collector unavailable. This marker demonstrates WATCHTOWER event styling.', region:'California, USA', kind:'event' },
-      { id:'demo-3', title:'Demo severe weather alert', category:'weather', severity:4, lat:35.4, lon:-97.5, updated:new Date(Date.now()-4.5*3600000).toISOString(), source:'DEMO DATA', summary:'Live collector unavailable. This marker demonstrates WATCHTOWER event styling.', region:'Oklahoma, USA', kind:'alert' },
-      { id:'demo-4', title:'Demo security reporting item', category:'security', severity:2, lat:null, lon:null, updated:new Date(Date.now()-1.1*3600000).toISOString(), source:'DEMO DATA', summary:'News-layer demo. Reporting is not the same as independently verified event data.', region:'Global', kind:'report' },
-    ]
-  };
+async function getUSGS(){const d=await fetchJson('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_month.geojson');return(d.features||[]).slice(0,500).map(f=>{const p=f.properties||{},c=f.geometry?.coordinates||[],mag=n(p.mag)||0,depth=n(c[2]);return{id:`usgs-${f.id}`,title:p.title||'Earthquake',category:'earthquake',severity:mag>=6.5?5:mag>=5.5?4:mag>=4.5?3:mag>=3.5?2:1,lat:n(c[1]),lon:n(c[0]),updated:new Date(p.time||p.updated||Date.now()).toISOString(),source:'USGS',url:p.url||'',summary:`Magnitude ${mag.toFixed(1)}${depth!==null?` · depth ${depth.toFixed(0)} km`:''}`,region:p.place||'',kind:'event'};});}
+async function getEONET(){const d=await fetchJson('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30&limit=200');return(d.events||[]).map(e=>{const cats=e.categories||[],raw=cats[0]?.id||'natural',cat=EONET_MAP[raw]||'natural',g=(e.geometry||[]).at(-1)||{},[lat,lon]=centroid(g),src=(e.sources||[])[0];return{id:`eonet-${e.id}`,title:e.title||'Natural event',category:cat,severity:['wildfire','storm','volcano','flood'].includes(cat)?3:2,lat,lon,updated:g.date||new Date().toISOString(),source:'NASA EONET',url:src?.url||e.link||'',summary:e.description||cats[0]?.title||'Open natural event tracked by NASA EONET.',region:'',kind:'event'};});}
+async function getNWS(){const d=await fetchJson('https://api.weather.gov/alerts/active?status=actual&message_type=alert',{headers:{Accept:'application/geo+json'}});const sm={Extreme:5,Severe:4,Moderate:3,Minor:2,Unknown:2};return(d.features||[]).slice(0,350).map(f=>{const p=f.properties||{},[lat,lon]=centroid(f.geometry);return{id:`nws-${p.id||f.id}`,title:p.event||'Weather alert',category:'weather',severity:sm[p.severity]||2,lat,lon,updated:p.sent||p.effective||p.onset||new Date().toISOString(),source:'NOAA / NWS',url:p['@id']||p.id||'',summary:p.headline||p.description||'',region:p.areaDesc||'',kind:'alert'};});}
+async function getGDACS(){const d=await fetchJson('https://www.gdacs.org/gdacsapi/api/events/geteventlist/EVENTS4APP');const feats=d.features||d||[];if(!Array.isArray(feats))return[];return feats.slice(0,140).map((f,i)=>{const p=f.properties||f,[lat,lon]=centroid(f.geometry),level=String(p.alertlevel||p.alertLevel||'green').toLowerCase(),type=String(p.eventtype||p.eventType||p.eventtypeid||'').toUpperCase();return{id:`gdacs-${p.eventid||p.eventId||i}-${type}`,title:p.name||p.eventname||p.title||`${type||'Disaster'} event`,category:GDACS_MAP[type]||'natural',severity:level==='red'?5:level==='orange'?4:level==='green'?2:3,lat,lon,updated:p.fromdate||p.todate||p.datetime||new Date().toISOString(),source:'GDACS',url:p.url?.report||p.url||p.link||'https://www.gdacs.org/',summary:`GDACS ${level.toUpperCase()} alert${p.severity?` · ${p.severity}`:''}.`,region:p.country||p.countryname||'',kind:'alert'};}).filter(e=>e.lat!==null&&e.lon!==null);}
+async function getSWPC(){const d=await fetchJson('https://services.swpc.noaa.gov/products/alerts.json');if(!Array.isArray(d))return[];return d.slice(0,30).map((a,i)=>{const raw=(a.message||a.product_text||a.text||JSON.stringify(a)).replace(/\s+/g,' ').trim(),code=String(a.product_id||a.productId||a.type||'SWPC'),s=/(G5|S5|R5|EXTREME)/i.test(raw)?5:/(G4|S4|R4|SEVERE)/i.test(raw)?4:/(G3|S3|R3|STRONG)/i.test(raw)?3:2;return{id:`swpc-${a.issue_datetime||a.issue_datetime_utc||i}-${code}`,title:`Space weather ${code}`,category:'spaceweather',severity:s,lat:null,lon:null,updated:a.issue_datetime||a.issue_datetime_utc||a.issue_time||new Date().toISOString(),source:'NOAA SWPC',url:'https://www.swpc.noaa.gov/products/alerts-watches-and-warnings',summary:raw.slice(0,300),region:'Near-Earth space environment',kind:'alert'};});}
+async function getLaunches(){const d=await fetchJson('https://ll.thespacedevs.com/2.3.0/launches/upcoming/?limit=20&mode=normal&ordering=net');return(d.results||[]).map(x=>{const pad=x.pad||{},loc=pad.location||{},lat=n(pad.latitude),lon=n(pad.longitude),agency=x.launch_service_provider?.name||x.lsp?.name||'',status=x.status?.abbrev||x.status?.name||'Scheduled';return{id:`ll2-${x.id}`,title:x.name||'Upcoming launch',category:'space',severity:x.is_crewed?3:2,lat,lon,updated:x.net||x.window_start||x.last_updated||new Date().toISOString(),source:'Launch Library 2',url:x.webcast_live?x.vidURLs?.[0]?.url:x.url||'https://thespacedevs.com/',summary:`${status}${agency?` · ${agency}`:''}${x.mission?.description?` · ${x.mission.description.slice(0,180)}`:''}`,region:loc.name||pad.name||'',kind:'schedule'};});}
+async function getGDELT(){const q=encodeURIComponent('(missile OR airstrike OR drone OR military OR conflict OR ceasefire OR nuclear)');const d=await fetchJson(`https://api.gdeltproject.org/api/v2/doc/doc?query=${q}&mode=artlist&maxrecords=45&timespan=24h&format=json&sort=datedesc`);return(d.articles||[]).slice(0,45).map((a,i)=>{let t=a.seendate||a.date||new Date().toISOString();if(/^\d{14}$/.test(String(t)))t=`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}T${t.slice(8,10)}:${t.slice(10,12)}:${t.slice(12,14)}Z`;const title=a.title||'Security reporting';return{id:`gdelt-${i}-${String(a.url||title).slice(-24)}`,title,category:'security',severity:/nuclear|ballistic|missile|airstrike|invasion|mobilization/i.test(title)?3:2,lat:null,lon:null,updated:iso(t),source:`GDELT${a.domain?` · ${a.domain}`:''}`,url:a.url||'',summary:'Open-source media reporting. This item is not independently verified by WATCHTOWER.',region:a.sourcecountry||a.language||'Global',kind:'report'};});}
 
-  const $ = (id) => document.getElementById(id);
+const FALLBACK=[
+{id:'demo-eq',title:'Demo M6.1 seismic event',category:'earthquake',severity:4,lat:35.6,lon:139.7,updated:new Date(Date.now()-52*60000).toISOString(),source:'DEMO FALLBACK',url:'',summary:'Live source connection failed. Demonstration marker only.',region:'Japan',kind:'event'},
+{id:'demo-wf',title:'Demo wildfire complex',category:'wildfire',severity:3,lat:39.1,lon:-121.2,updated:new Date(Date.now()-2.4*3600000).toISOString(),source:'DEMO FALLBACK',url:'',summary:'Live source connection failed. Demonstration marker only.',region:'California, USA',kind:'event'},
+{id:'demo-tc',title:'Demo tropical cyclone',category:'storm',severity:4,lat:18.2,lon:130.5,updated:new Date(Date.now()-3.1*3600000).toISOString(),source:'DEMO FALLBACK',url:'',summary:'Live source connection failed. Demonstration marker only.',region:'Western Pacific',kind:'event'}
+];
 
-  function parseTime(value) {
-    if (!value) return 0;
-    const t = Date.parse(value);
-    return Number.isFinite(t) ? t : 0;
-  }
+function dedupe(items){const out=[],seen=new Set();for(const e of items){const key=e.id||`${e.source}|${e.title}|${e.updated}`;if(seen.has(key))continue;seen.add(key);e.severity=clamp(Number(e.severity)||1,1,5);if(e.lat!==null)e.lat=n(e.lat);if(e.lon!==null)e.lon=n(e.lon);out.push(e);}return out.sort((a,b)=>parseTime(b.updated)-parseTime(a.updated));}
+function filtered(){const now=Date.now(),cut=now-state.hours*3600000,q=state.query.trim().toLowerCase();return state.events.filter(e=>{if(!state.activeCats.has(e.category)||e.severity<state.minSeverity)return false;const t=parseTime(e.updated);if(e.kind==='schedule'){if(t<now-24*3600000||t>now+state.hours*3600000)return false;}else if(t&&t<cut)return false;if(q&&!`${e.title} ${e.summary} ${e.region} ${e.source} ${meta(e.category).label}`.toLowerCase().includes(q))return false;return true;});}
 
-  function relTime(value) {
-    const t = parseTime(value);
-    if (!t) return 'TIME N/A';
-    const sec = Math.max(0, (Date.now() - t) / 1000);
-    if (sec < 60) return `${Math.floor(sec)}s ago`;
-    if (sec < 3600) return `${Math.floor(sec/60)}m ago`;
-    if (sec < 86400) return `${Math.floor(sec/3600)}h ago`;
-    return `${Math.floor(sec/86400)}d ago`;
-  }
+function initMap(){if(!window.L){$('map').innerHTML='<div class="empty">MAP LIBRARY FAILED TO LOAD<br>Event stream remains available.</div>';return;}state.map=L.map('map',{worldCopyJump:true,minZoom:2,maxBounds:[[-85,-260],[85,260]],zoomControl:true,preferCanvas:true}).setView(VIEW.world[0],VIEW.world[1]);L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap contributors &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(state.map);state.cluster=window.L.markerClusterGroup?L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:42,spiderfyOnMaxZoom:true,removeOutsideVisibleBounds:true}):L.layerGroup();state.map.addLayer(state.cluster);const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}
+function iconFor(e){const m=meta(e.category),high=e.severity>=4?'high':'';return L.divIcon({className:'event-div-icon',html:`<div class="event-pin ${high}" style="color:${m.color};background:${m.color}33"><span></span></div>`,iconSize:[18,18],iconAnchor:[9,16],popupAnchor:[0,-13]});}
+function renderMap(ev){if(!state.map||!state.cluster)return;state.cluster.clearLayers();state.markers.clear();let mapped=0;ev.filter(e=>e.lat!==null&&e.lon!==null).slice(0,700).forEach(e=>{mapped++;const marker=L.marker([e.lat,e.lon],{icon:iconFor(e),title:e.title,keyboard:true});marker.bindPopup(`<div class="popup-cat">${esc(meta(e.category).label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>`);marker.on('click',()=>selectEvent(e.id,false));state.cluster.addLayer(marker);state.markers.set(e.id,marker);});$('mappedCount').textContent=String(mapped);$('mapSignalCount').textContent=String(mapped);}
+function renderLegend(){const cats=[...state.activeCats].filter(c=>CAT[c]).slice(0,10);$('mapLegend').innerHTML=cats.map(c=>`<span class="legend-item" style="color:${CAT[c].color}"><i class="legend-symbol"></i><span style="color:var(--muted)">${esc(CAT[c].label)}</span></span>`).join('')+`<span class="legend-item" style="margin-left:auto;color:var(--muted2)">● HIGH/CRITICAL PULSE</span>`;}
+function renderLayers(){const counts={};state.events.forEach(e=>counts[e.category]=(counts[e.category]||0)+1);const cats=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);if(!state.activeCats.size)cats.forEach(c=>state.activeCats.add(c));$('layerList').innerHTML=cats.map(c=>{const m=meta(c),a=state.activeCats.has(c);return`<button class="layer-row ${a?'active':''}" type="button" data-cat="${esc(c)}" aria-pressed="${a}"><span class="layer-symbol" style="color:${m.color}">${esc(m.symbol)}</span><span class="layer-name">${esc(m.label)}</span><span class="layer-count">${counts[c]}</span></button>`;}).join('');$('layerActive').textContent=`${state.activeCats.size} ACTIVE`;$('layerList').querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.cat;state.activeCats.has(c)?state.activeCats.delete(c):state.activeCats.add(c);renderAll();}));}
+function renderFeed(ev){const shown=ev.slice(0,130);$('feedCount').textContent=`${shown.length} SHOWN`;if(!shown.length){$('eventFeed').innerHTML='<div class="empty">NO SIGNALS MATCH THIS VIEW.<br>Expand the time window or reset filters.</div>';return;}$('eventFeed').innerHTML=shown.map(e=>{const m=meta(e.category),mapped=e.lat!==null&&e.lon!==null;return`<button type="button" class="feed-item ${state.selectedId===e.id?'selected':''}" data-id="${esc(e.id)}"><i class="feed-sev s${e.severity}"></i><span><span class="feed-top"><b class="feed-cat" style="color:${m.color}">${esc(m.label)}</b><time class="feed-time">${esc(rel(e.updated))}</time></span><span class="feed-title">${esc(e.title)}</span><span class="feed-meta"><span>${esc(e.source||'Unknown')}${e.region?` · ${esc(e.region)}`:''}</span>${mapped?'':'<b class="unmapped">FEED ONLY</b>'}</span></span></button>`;}).join('');$('eventFeed').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
+function renderSources(){const good=state.sources.filter(s=>s.status==='ok').length,total=state.sources.length,loading=state.sources.filter(s=>s.status==='loading').length;$('sourceHealth').textContent=`${good}/${total||7}`;$('sourceNote').textContent=loading?`${loading} still syncing`:total?`${good===total?'all feeds nominal':'partial feed availability'}`:'connecting';$('sourceGrid').innerHTML=state.sources.map(s=>`<div class="source-item"><div class="source-title">${esc(s.name)}</div><div class="source-state ${s.status==='bad'?'bad':s.status==='loading'?'loading':''}"><i></i>${s.status==='ok'?'ONLINE':s.status==='bad'?'DEGRADED':'SYNCING'}</div><div class="source-detail">${s.status==='ok'?`${s.count} records · ${s.ms} ms`:s.status==='bad'?esc(s.error||'No response'):'Awaiting response'}</div></div>`).join('');const chip=$('liveStatus');chip.className=`status-chip ${state.loading?'loading':good<total?'degraded':''}`;chip.querySelector('span').textContent=state.loading?'SYNCING':good===total&&total?'LIVE FEEDS':good?'PARTIAL FEEDS':'OFFLINE';}
+function renderPriority(ev){const list=[...ev].sort((a,b)=>(b.severity-a.severity)||(Math.abs(Date.now()-parseTime(a.updated))-Math.abs(Date.now()-parseTime(b.updated)))).slice(0,6);$('priorityQueue').innerHTML=list.length?list.map((e,i)=>`<button type="button" class="priority-item" data-id="${esc(e.id)}"><span class="priority-rank">${String(i+1).padStart(2,'0')}</span><span><span class="priority-name">${esc(e.title)}</span><span class="priority-meta">${esc(sevLabel(e.severity))} · ${esc(rel(e.updated))}</span></span></button>`).join(''):'<div class="empty">NO PRIORITY SIGNALS</div>';$('priorityQueue').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
+function renderTimeline(ev){const now=Date.now(),bins=Array.from({length:24},(_,i)=>({h:i,count:0,high:0}));ev.forEach(e=>{if(e.kind==='schedule')return;const age=(now-parseTime(e.updated))/3600000;if(age>=0&&age<24){const idx=23-Math.floor(age);bins[idx].count++;if(e.severity>=4)bins[idx].high++;}});const max=Math.max(1,...bins.map(b=>b.count));$('tempoLabel').textContent=`${bins.reduce((a,b)=>a+b.count,0)} EVENTS`;$('timeline').innerHTML=bins.map((b,i)=>{const height=Math.max(2,Math.round((b.count/max)*76)),hour=(new Date(now-(23-i)*3600000)).getUTCHours();return`<span class="timeline-bar-wrap" title="${b.count} signal(s) · ${String(hour).padStart(2,'0')}:00 UTC"><i class="timeline-bar ${b.high?'hot':''}" style="height:${height}px"></i>${i%4===3?`<small>${String(hour).padStart(2,'0')}</small>`:'<small>&nbsp;</small>'}</span>`;}).join('');}
+function buildSitrep(ev){if(!ev.length)return'No signals match the current filters. Expand the time window or re-enable layers to rebuild the picture.';const high=ev.filter(e=>e.severity>=4),mapped=ev.filter(e=>e.lat!==null),counts={};ev.forEach(e=>counts[e.category]=(counts[e.category]||0)+1);const topCats=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,v])=>`${meta(c).label.toLowerCase()} (${v})`);const lead=[...ev].sort((a,b)=>(b.severity-a.severity)||(parseTime(b.updated)-parseTime(a.updated)))[0];let text=`<strong>${ev.length} visible signals</strong> across ${Object.keys(counts).length} active categories; ${mapped.length} are geolocated. `;text+=high.length?`<strong>${high.length} high-priority signal${high.length===1?'':'s'}</strong> currently lead the queue. `:'No high-priority signals are visible in this filter set. ';text+=`Highest-volume layers: ${esc(topCats.join(', '))}. `;if(lead)text+=`Current lead item: <strong>${esc(lead.title)}</strong> (${esc(sevLabel(lead.severity))}, ${esc(rel(lead.updated))}).`;return text;}
+function posture(ev){let score=0;const now=Date.now();ev.forEach(e=>{const age=Math.max(0,(now-parseTime(e.updated))/3600000),decay=Math.max(.15,1-age/Math.max(24,state.hours));score+=e.severity*decay;});score=clamp(Math.round(score/2.6),0,100);let label=score>=75?'CRITICAL':score>=55?'HEIGHTENED':score>=30?'ELEVATED':'ROUTINE';$('postureScore').textContent=String(score);$('postureLabel').textContent=label;$('postureBar').style.width=`${score}%`;}
+function selectEvent(id,focusMap){const e=state.events.find(x=>x.id===id);if(!e)return;state.selectedId=id;const m=meta(e.category);$('drawerCategory').textContent=m.label.toUpperCase();$('drawerCategory').style.color=m.color;$('drawerSeverity').textContent=sevLabel(e.severity);$('drawerTitle').textContent=e.title;$('drawerMeta').textContent=`${e.source||'Unknown source'} · ${e.region||'Region not specified'} · ${rel(e.updated)}`;$('drawerCoords').textContent=e.lat!==null&&e.lon!==null?`${e.lat.toFixed(3)}, ${e.lon.toFixed(3)} · ${new Date(parseTime(e.updated)).toISOString().replace('.000','')}`:'UNMAPPED / FEED-ONLY SIGNAL';$('drawerSummary').textContent=e.summary||'No additional summary supplied by source.';const link=$('drawerLink');if(e.url){link.href=e.url;link.style.display='inline-flex';}else link.style.display='none';$('detailDrawer').classList.add('open');$('detailDrawer').setAttribute('aria-hidden','false');$('mapHint').textContent=`SELECTED // ${e.title.slice(0,58).toUpperCase()}`;if(focusMap&&state.map&&e.lat!==null&&e.lon!==null){state.map.flyTo([e.lat,e.lon],Math.max(state.map.getZoom(),5),{duration:.7});const marker=state.markers.get(e.id);if(marker)setTimeout(()=>marker.openPopup(),750);}renderFeed(filtered());}
+function closeDrawer(){$('detailDrawer').classList.remove('open');$('detailDrawer').setAttribute('aria-hidden','true');state.selectedId=null;$('mapHint').textContent='SELECT A MARKER OR FEED ITEM';renderFeed(filtered());}
+function renderAll(){renderLayers();const ev=filtered();$('visibleCount').textContent=String(ev.length);$('visibleNote').textContent=`within ${state.hours<24?state.hours+' hours':state.hours===24?'24 hours':state.hours===168?'7 days':'30 days'}`;$('priorityCount').textContent=String(ev.filter(e=>e.severity>=4).length);renderMap(ev);renderLegend();renderFeed(ev);renderPriority(ev);renderTimeline(ev);$('sitrepText').innerHTML=buildSitrep(ev);posture(ev);}
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2400);}
 
-  function formatUtc(value) {
-    const t = parseTime(value);
-    if (!t) return 'Unknown time';
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit', hour12:false
-    }).format(new Date(t)) + ' UTC';
-  }
+async function loadAll(manual=false){if(state.loading)return;state.loading=true;state.sources=[];renderSources();if(manual)toast('Refreshing public sources…');const jobs=[source('USGS',getUSGS),source('NASA EONET',getEONET),source('NOAA / NWS',getNWS),source('GDACS',getGDACS),source('NOAA SWPC',getSWPC),source('Launch Library 2',getLaunches),source('GDELT',getGDELT)];const chunks=await Promise.all(jobs);let events=dedupe(chunks.flat());if(!events.length){events=FALLBACK;toast('Live sources unavailable — demo fallback active');}state.events=events;state.activeCats.clear();events.forEach(e=>state.activeCats.add(e.category));state.lastRefresh=new Date();state.loading=false;renderSources();renderAll();$('lastRefresh').textContent=`SYNC ${state.lastRefresh.toISOString().slice(11,19)} UTC`;if(manual)toast(`${events.length} signals loaded`);}
+function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));if(state.map)state.map.setView(VIEW.world[0],VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.65});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));}
+function clock(){const tick=()=>{$('utcClock').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());if(state.lastRefresh)$('lastRefresh').textContent=`SYNC ${state.lastRefresh.toISOString().slice(11,19)} UTC · ${rel(state.lastRefresh.toISOString()).toUpperCase()}`;};tick();setInterval(tick,1000);}
+function autoRefresh(){setInterval(()=>{if(!document.hidden)loadAll(false);},10*60*1000);}
 
-  function escapeHtml(value='') {
-    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  }
-
-  function catMeta(cat) {
-    return CATEGORY_META[cat] || { label: String(cat || 'Other'), color: '#91a8ac' };
-  }
-
-  function severityLabel(n) {
-    return n >= 5 ? 'CRITICAL' : n >= 4 ? 'HIGH' : n >= 3 ? 'ELEVATED' : n >= 2 ? 'WATCH' : 'LOW';
-  }
-
-  function filteredEvents() {
-    const cutoff = Date.now() - state.hours * 3600000;
-    const q = state.query.trim().toLowerCase();
-    return state.events.filter(e => {
-      if (!state.activeCats.has(e.category)) return false;
-      const t = parseTime(e.updated);
-      if (t && t < cutoff) return false;
-      if (q) {
-        const blob = [e.title,e.summary,e.region,e.source,e.category].join(' ').toLowerCase();
-        if (!blob.includes(q)) return false;
-      }
-      return true;
-    });
-  }
-
-  function initMap() {
-    if (!window.L) {
-      $('map').innerHTML = '<div class="empty-state">Map library could not load. Event stream remains available.</div>';
-      return;
-    }
-    state.map = L.map('map', { zoomControl: true, worldCopyJump: true, minZoom: 2 }).setView([24, 8], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd', maxZoom: 19
-    }).addTo(state.map);
-  }
-
-  function markerIcon(e) {
-    const meta = catMeta(e.category);
-    const high = Number(e.severity) >= 4 ? 'high' : '';
-    return L.divIcon({
-      className: 'event-marker',
-      html: `<div class="marker-core ${high}" style="color:${meta.color};background:${meta.color}"></div>`,
-      iconSize: [14,14], iconAnchor:[7,7]
-    });
-  }
-
-  function renderMap(events) {
-    if (!state.map) return;
-    state.markers.forEach(m => m.remove());
-    state.markers = [];
-    events.filter(e => Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon))).slice(0, 320).forEach(e => {
-      const marker = L.marker([Number(e.lat), Number(e.lon)], { icon: markerIcon(e), keyboard: true, title: e.title }).addTo(state.map);
-      marker.on('click', () => selectEvent(e.id, true));
-      state.markers.push(marker);
-    });
-  }
-
-  function renderLayers() {
-    const counts = {};
-    state.events.forEach(e => counts[e.category] = (counts[e.category] || 0) + 1);
-    const cats = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
-    if (!state.activeCats.size) cats.forEach(c => state.activeCats.add(c));
-    $('layerList').innerHTML = cats.map(cat => {
-      const m = catMeta(cat), active = state.activeCats.has(cat);
-      return `<button class="layer-row ${active?'active':''}" type="button" data-cat="${escapeHtml(cat)}" aria-pressed="${active}">
-        <span class="swatch" style="background:${m.color};color:${m.color}"></span>
-        <span class="layer-name">${escapeHtml(m.label)}</span>
-        <span class="layer-count">${counts[cat]}</span>
-      </button>`;
-    }).join('');
-    $('layerCount').textContent = `${state.activeCats.size} active`;
-    $('layerList').querySelectorAll('[data-cat]').forEach(btn => btn.addEventListener('click', () => {
-      const cat = btn.dataset.cat;
-      state.activeCats.has(cat) ? state.activeCats.delete(cat) : state.activeCats.add(cat);
-      renderLayers(); renderAll();
-    }));
-  }
-
-  function renderFeed(events) {
-    const feed = $('eventFeed');
-    const shown = events.slice(0, 100);
-    $('feedCount').textContent = `${shown.length} shown`;
-    if (!shown.length) {
-      feed.innerHTML = '<div class="empty-state">No signals match this view.<br>Expand the time window or reset filters.</div>';
-      return;
-    }
-    feed.innerHTML = shown.map(e => {
-      const meta = catMeta(e.category);
-      const region = e.region ? ` · ${escapeHtml(e.region)}` : '';
-      return `<button class="feed-item ${state.selectedId===e.id?'selected':''}" type="button" data-id="${escapeHtml(e.id)}">
-        <span class="severity-bar s${Number(e.severity)||1}"></span>
-        <span>
-          <span class="feed-topline"><span class="feed-cat" style="color:${meta.color}">${escapeHtml(meta.label)}</span><span class="feed-time">${escapeHtml(relTime(e.updated))}</span></span>
-          <span class="feed-title">${escapeHtml(e.title)}</span>
-          <span class="feed-meta">${escapeHtml(e.source || 'Unknown source')}${region}</span>
-        </span>
-      </button>`;
-    }).join('');
-    feed.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => selectEvent(b.dataset.id, true)));
-  }
-
-  function renderSources() {
-    const sources = state.raw?.sources || [];
-    const good = sources.filter(s => s.ok).length;
-    $('sourceCount').textContent = `${good}/${sources.length}`;
-    $('sourceFoot').textContent = sources.length ? `${sources.reduce((a,s)=>a+(s.count||0),0)} records collected` : 'no collector status';
-    $('sourceGrid').innerHTML = sources.map(s => `<div class="source-item">
-      <div class="source-name">${escapeHtml(s.name)}</div>
-      <div class="source-status ${s.ok?'':'bad'}"><i></i>${s.ok?'ONLINE':'DEGRADED'}</div>
-      <div class="source-count">${s.ok ? `${s.count || 0} normalized records` : escapeHtml(s.error || 'No live response')}</div>
-    </div>`).join('') || '<div class="empty-state">No source status available.</div>';
-    $('liveChip').classList.toggle('degraded', good !== sources.length || state.usingFallback);
-    $('liveLabel').textContent = state.usingFallback ? 'DEMO MODE' : (good === sources.length ? 'LIVE FEEDS' : 'PARTIAL FEEDS');
-  }
-
-  function renderPriority(events) {
-    const priority = [...events].sort((a,b) => (Number(b.severity)-Number(a.severity)) || (parseTime(b.updated)-parseTime(a.updated))).slice(0,4);
-    $('priorityQueue').innerHTML = priority.length ? priority.map((e,i) => `<button type="button" class="priority-item" data-id="${escapeHtml(e.id)}">
-      <span class="priority-rank">0${i+1}</span><span><span class="priority-title">${escapeHtml(e.title)}</span><span class="priority-meta">${escapeHtml(severityLabel(Number(e.severity)))} · ${escapeHtml(relTime(e.updated))}</span></span>
-    </button>`).join('') : '<div class="empty-state">No priority signals in this window.</div>';
-    $('priorityQueue').querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => selectEvent(b.dataset.id, true)));
-  }
-
-  function renderPosture(events) {
-    if (!events.length) {
-      $('postureScore').textContent = '--'; $('postureLabel').textContent = 'QUIET'; $('postureText').textContent = 'No signals in the selected view.'; return;
-    }
-    const weighted = events.reduce((sum,e) => sum + Math.pow(Number(e.severity)||1, 2), 0);
-    const high = events.filter(e => Number(e.severity)>=4).length;
-    const score = Math.min(99, Math.round(Math.log10(weighted + 10) * 26 + high * 2));
-    const label = score >= 80 ? 'HIGH ACTIVITY' : score >= 62 ? 'ELEVATED' : score >= 42 ? 'ACTIVE' : 'NOMINAL';
-    $('postureScore').textContent = score;
-    $('postureLabel').textContent = label;
-    $('postureText').textContent = `${events.length} visible signals; ${high} high-priority.`;
-  }
-
-  function renderMetrics(events) {
-    $('visibleCount').textContent = events.length.toLocaleString();
-    $('highCount').textContent = events.filter(e => Number(e.severity)>=4).length.toLocaleString();
-    $('timeWindowLabel').textContent = state.hours < 24 ? `within ${state.hours} hours` : `within ${Math.round(state.hours/24)} days`;
-    const gen = state.raw?.generated_at;
-    $('refreshAge').textContent = gen ? relTime(gen).toUpperCase() : '--';
-    $('refreshTime').textContent = gen ? formatUtc(gen) : 'unknown collector time';
-  }
-
-  function renderAll() {
-    const events = filteredEvents();
-    renderMetrics(events);
-    renderMap(events);
-    renderFeed(events);
-    renderPriority(events);
-    renderPosture(events);
-  }
-
-  function selectEvent(id, pan=false) {
-    const e = state.events.find(x => x.id === id);
-    if (!e) return;
-    state.selectedId = id;
-    const meta = catMeta(e.category);
-    $('drawerKicker').textContent = `${meta.label.toUpperCase()} // ${severityLabel(Number(e.severity))}`;
-    $('drawerTitle').textContent = e.title || 'Untitled event';
-    $('drawerMeta').innerHTML = `${escapeHtml(e.source || 'Unknown source')}<br>${escapeHtml(formatUtc(e.updated))}${e.region?`<br>${escapeHtml(e.region)}`:''}`;
-    $('drawerSummary').textContent = e.summary || 'No additional summary supplied by the normalized source.';
-    const link = $('drawerLink');
-    if (e.url) { link.href = e.url; link.style.display = 'inline-flex'; } else { link.style.display = 'none'; }
-    $('detailDrawer').classList.add('open'); $('detailDrawer').setAttribute('aria-hidden','false');
-    if (pan && state.map && Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon))) state.map.flyTo([Number(e.lat), Number(e.lon)], Math.max(state.map.getZoom(), 5), { duration: .7 });
-    renderFeed(filteredEvents());
-  }
-
-  function closeDrawer() {
-    state.selectedId = null; $('detailDrawer').classList.remove('open'); $('detailDrawer').setAttribute('aria-hidden','true'); renderFeed(filteredEvents());
-  }
-
-  function toast(msg) {
-    const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(()=>el.classList.remove('show'), 2200);
-  }
-
-  async function loadData(force=false) {
-    $('refreshBtn').disabled = true;
-    try {
-      const suffix = force ? `?t=${Date.now()}` : '';
-      const r = await fetch(`./data/events.json${suffix}`, { cache: force ? 'no-store' : 'default' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      state.raw = await r.json();
-      state.events = Array.isArray(state.raw.events) ? state.raw.events : [];
-      state.usingFallback = !!state.raw.sample;
-    } catch (err) {
-      state.raw = FALLBACK; state.events = FALLBACK.events; state.usingFallback = true;
-      toast('Live data unavailable — demo data loaded');
-    } finally {
-      $('refreshBtn').disabled = false;
-    }
-    state.activeCats.clear();
-    state.events.forEach(e => state.activeCats.add(e.category));
-    renderLayers(); renderSources(); renderAll();
-    if (force) toast(state.usingFallback ? 'Demo data refreshed' : 'Event stream refreshed');
-  }
-
-  function bindControls() {
-    $('refreshBtn').addEventListener('click', () => loadData(true));
-    $('drawerClose').addEventListener('click', closeDrawer);
-    $('searchInput').addEventListener('input', e => { state.query = e.target.value; renderAll(); });
-    $('resetBtn').addEventListener('click', () => {
-      state.query = ''; $('searchInput').value = ''; state.hours = 168;
-      document.querySelectorAll('#timeFilters button').forEach(b => b.classList.toggle('active', b.dataset.hours === '168'));
-      state.activeCats.clear(); state.events.forEach(e => state.activeCats.add(e.category)); renderLayers(); renderAll();
-      if (state.map) state.map.setView([24,8],2); closeDrawer();
-    });
-    document.querySelectorAll('#timeFilters button').forEach(btn => btn.addEventListener('click', () => {
-      state.hours = Number(btn.dataset.hours) || 168;
-      document.querySelectorAll('#timeFilters button').forEach(b => b.classList.toggle('active', b === btn));
-      renderAll();
-    }));
-    document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b === btn));
-      if (!state.map) return;
-      if (btn.dataset.view === 'conus') state.map.flyTo([39.5,-98.35],4,{duration:.8});
-      else state.map.flyTo([24,8],2,{duration:.8});
-    }));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
-  }
-
-  function startClock() {
-    const tick = () => {
-      $('utcClock').textContent = new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());
-      const gen = state.raw?.generated_at;
-      if (gen) $('refreshAge').textContent = relTime(gen).toUpperCase();
-    };
-    tick(); setInterval(tick, 1000);
-  }
-
-  bindControls();
-  initMap();
-  startClock();
-  loadData(false);
+bind();initMap();clock();autoRefresh();loadAll(false);
 })();
