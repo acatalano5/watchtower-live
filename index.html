@@ -20,8 +20,8 @@
     <div class="brand-block">
       <div class="mark" aria-hidden="true"><span></span><b>W</b></div>
       <div>
-        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.41</span></div>
-        <p>Public-source global situational awareness</p>
+        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.50</span></div>
+        <p>Public-source global situational awareness <span class="brand-sep">/</span> hazards · conflict · space</p>
       </div>
     </div>
     <div class="top-actions">
@@ -100,12 +100,17 @@
           </div>
           <div class="map-vignette" aria-hidden="true"></div>
           <div class="map-summary"><strong id="mapSignalCount">0</strong><span>signals on map</span></div>
+          <div class="conflict-lens" id="conflictLens" aria-label="Conflict coverage"><span>CONFLICT</span><strong id="conflictCount">—</strong><small>tracked theaters</small></div>
           <div class="map-hint" id="mapHint">Select a marker for details</div>
         </div>
 
         <div class="map-footer">
           <div id="mapLegend" class="map-legend"></div>
-          <div class="map-note">Reporting indicates source publication, not independent verification.</div>
+          <div class="map-note">Conflict zones are approximate reference areas. Reporting markers indicate location mentions, not independently verified combat events.</div>
+        </div>
+        <div class="theater-band">
+          <div class="theater-band-label"><span>THEATER WATCH</span><small>selected ongoing conflicts</small></div>
+          <div class="theater-strip" id="theaterStrip" aria-label="Selected conflict theaters"></div>
         </div>
       </article>
 
@@ -118,7 +123,7 @@
           <div class="brief-body" id="sitrepText">
             <div class="brief-skeleton wide"></div><div class="brief-skeleton"></div><div class="brief-skeleton mid"></div>
           </div>
-          <p class="brief-note">Automated summary of visible public-source records. Not an intelligence assessment.</p>
+          <p class="brief-note">Automated summary of visible public-source records. Conflict reference areas are approximate; media-location signals are reporting, not independent verification.</p>
         </section>
 
         <section class="feed-card">
