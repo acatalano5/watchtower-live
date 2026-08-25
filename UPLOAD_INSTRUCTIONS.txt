@@ -1,16 +1,16 @@
-WATCHTOWER v0.33 — MOBILE MAP / DATELINE FIX
+WATCHTOWER v0.40 — Intelligence Layer / Map Graphics Refresh
 
-Replace only these visible files in watchtower-live:
-  index.html
-  assets/app.js
-  assets/styles.css
-  assets/favicon.svg
+Replace these files in your watchtower-live repo:
+- index.html
+- assets/app.js
+- assets/styles.css
+- assets/favicon.svg
 
-Do NOT delete or replace your existing .nojekyll file.
+Do NOT worry about .nojekyll if it already exists in the repo.
+After committing, hard-refresh the live site (Ctrl+F5) or fully close/reopen the mobile tab.
 
-Key fixes:
-- antimeridian-safe spherical geometry centroids (+179/-179 no longer average to 0)
-- invalid/Null Island coordinates are suppressed from map display
-- mobile uses direct Leaflet canvas markers instead of MarkerCluster
-- mobile map starts at a wider world view and uses normal pinch/+/- navigation
-- desktop retains clustering with Leaflet's native zoom-to-bounds behavior
+New in v0.40:
+- switchable map themes: Night Ops / Atlas / Satellite
+- upgraded marker graphics and cluster visuals
+- improved map HUD / grid / zoom control styling
+- preserved v0.33 mobile map fix

@@ -20,7 +20,7 @@
     <div class="brand-block">
       <div class="mark" aria-hidden="true"><span></span><b>W</b></div>
       <div>
-        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.32</span></div>
+        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.40</span></div>
         <p>Public-source global situational awareness</p>
       </div>
     </div>
@@ -71,14 +71,21 @@
         <div class="map-header">
           <div>
             <span class="kicker">COMMON OPERATING PICTURE</span>
-            <h2>Global activity</h2>
+            <h2>Global activity</h2><p class="map-subtitle">Map-first operational picture with switchable visual themes.</p>
           </div>
-          <div class="view-pills" id="mapPresets" aria-label="Map region presets">
-            <button type="button" data-view="world" class="active">World</button>
-            <button type="button" data-view="conus">U.S.</button>
-            <button type="button" data-view="mena">MENA</button>
-            <button type="button" data-view="europe">Europe</button>
-            <button type="button" data-view="pacific">Pacific</button>
+          <div class="map-toolbar">
+            <div class="view-pills" id="mapPresets" aria-label="Map region presets">
+              <button type="button" data-view="world" class="active">World</button>
+              <button type="button" data-view="conus">U.S.</button>
+              <button type="button" data-view="mena">MENA</button>
+              <button type="button" data-view="europe">Europe</button>
+              <button type="button" data-view="pacific">Pacific</button>
+            </div>
+            <div class="theme-pills" id="mapThemes" aria-label="Map visual themes">
+              <button type="button" data-theme="ops" class="active">Night Ops</button>
+              <button type="button" data-theme="atlas">Atlas</button>
+              <button type="button" data-theme="sat">Satellite</button>
+            </div>
           </div>
         </div>
 
@@ -87,6 +94,7 @@
         </div>
 
         <div class="map-stage">
+          <div class="map-grid" aria-hidden="true"></div>
           <div id="map" aria-label="Interactive event map">
             <div class="map-loading"><div class="radar-loader"><i></i><i></i></div><strong>Building global picture</strong><span>Connecting to public sources…</span></div>
           </div>

@@ -4,7 +4,8 @@
 const $ = id => document.getElementById(id);
 const state = {
   events: [], sources: [], activeCats: new Set(), hours: 168, minSeverity: 1, query: '',
-  map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false, mobileMap: false
+  map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false, mobileMap: false,
+  mapTheme: 'ops', tileBase: null, tileLabels: null
 };
 
 const CAT = {
@@ -19,6 +20,28 @@ const VIEW = {world:[[18,8],2],conus:[[38.4,-97],4],mena:[[29,42],4],europe:[[50
 const EONET_MAP = {wildfires:'wildfire',severeStorms:'storm',volcanoes:'volcano',floods:'flood',landslides:'landslide',seaLakeIce:'ice',drought:'drought',dustHaze:'atmosphere',snow:'snow',tempExtremes:'temperature',waterColor:'water',manmade:'incident'};
 const GDACS_MAP = {EQ:'earthquake',TC:'storm',FL:'flood',VO:'volcano',WF:'wildfire',DR:'drought'};
 const TIMEOUT = 13000;
+const THEME = {
+  ops:{
+    cls:'theme-ops',
+    base:{url:'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
+    labels:{url:'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,pane:'overlayPane'}},
+    hint:'Night Ops'
+  },
+  atlas:{
+    cls:'theme-atlas',
+    base:{url:'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
+    labels:{url:'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,pane:'overlayPane'}},
+    hint:'Atlas'
+  },
+  sat:{
+    cls:'theme-sat',
+    base:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,attribution:'Tiles &copy; Esri'}},
+    labels:{url:'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,pane:'overlayPane',attribution:'Labels &copy; Esri'}},
+    hint:'Satellite'
+  }
+};
+const GLYPH = {earthquake:'◎',wildfire:'▲',storm:'≈',weather:'!',volcano:'△',flood:'≋',security:'◆',space:'✦',spaceweather:'☼',landslide:'▰',drought:'◌',ice:'✧',natural:'●',incident:'✕',temperature:'◍',atmosphere:'◈',snow:'✶',water:'◉'};
+
 
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function num(v){const x=Number(v);return Number.isFinite(x)?x:null;}
@@ -97,13 +120,28 @@ const FALLBACK = [
 function dedupe(events){const seen=new Set();return events.filter(e=>{if(!e||!e.id)return false;const key=e.id;if(seen.has(key))return false;seen.add(key);e.severity=clamp(Number(e.severity)||1,1,5);e.lat=num(e.lat);e.lon=num(e.lon);if(!validCoord(e.lat,e.lon)){e.lat=null;e.lon=null;}e.updated=toIso(e.updated);return true;});}
 function filtered(){const q=state.query.trim().toLowerCase(),now=Date.now(),win=state.hours*3600000;return state.events.filter(e=>{if(!state.activeCats.has(e.category))return false;if(e.severity<state.minSeverity)return false;const t=parseTime(e.updated);if(e.kind!=='schedule'&&t&&now-t>win)return false;if(q&&!`${e.title} ${e.region} ${e.source} ${e.summary}`.toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b.severity-a.severity)||(parseTime(b.updated)-parseTime(a.updated)));}
 
+
+function setMapTheme(key){
+  const theme=THEME[key]||THEME.ops;
+  state.mapTheme=Object.prototype.hasOwnProperty.call(THEME,key)?key:'ops';
+  if(state.tileBase) state.map.removeLayer(state.tileBase);
+  if(state.tileLabels) state.map.removeLayer(state.tileLabels);
+  state.tileBase=L.tileLayer(theme.base.url,theme.base.options);
+  state.tileLabels=L.tileLayer(theme.labels.url,theme.labels.options);
+  state.tileBase.addTo(state.map);
+  state.tileLabels.addTo(state.map);
+  const mapEl=$('map');
+  mapEl.classList.remove('theme-ops','theme-atlas','theme-sat');
+  mapEl.classList.add(theme.cls);
+  document.querySelectorAll('#mapThemes button').forEach(b=>b.classList.toggle('active',b.dataset.theme===state.mapTheme));
+  $('mapHint').textContent=`${theme.hint} view · ${state.selectedId?'signal selected':'select a marker for details'}`;
+}
+
 function initMap(){
   if(!window.L){$('map').innerHTML='<div class="map-loading"><strong>Map library unavailable</strong><span>The event stream remains available.</span></div>';return;}
   state.mobileMap=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
   state.map=L.map('map',{worldCopyJump:true,minZoom:state.mobileMap?1:2,maxZoom:11,zoomControl:true,preferCanvas:true,attributionControl:true}).setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);
-  const base=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'});
-  const labels=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,pane:'overlayPane'});
-  base.addTo(state.map);labels.addTo(state.map);
+  setMapTheme(state.mapTheme);
 
   // Touch devices intentionally do NOT use MarkerCluster. Direct canvas markers avoid
   // spiderfy/centroid tap behavior entirely and keep pinch/drag navigation predictable.
@@ -133,9 +171,10 @@ function renderMap(events){
     const m=meta(e.category);let marker;
     if(state.mobileMap){
       const radius=e.severity>=5?7:e.severity>=4?6:e.severity>=3?5:4;
-      marker=L.circleMarker([e.lat,e.lon],{radius,color:m.color,weight:e.severity>=4?2:1.25,opacity:.95,fillColor:m.color,fillOpacity:e.severity>=4?.88:.68,bubblingMouseEvents:false});
+      marker=L.circleMarker([e.lat,e.lon],{radius,color:m.color,weight:e.severity>=4?2.4:1.5,opacity:.98,fillColor:m.color,fillOpacity:e.severity>=4?.9:.72,bubblingMouseEvents:false,className:'touch-signal'});
     }else{
-      const icon=L.divIcon({className:'signal-icon',html:`<div class="signal-marker s${e.severity}" style="--cat:${m.color}"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+      const glyph=GLYPH[e.category]||'●';
+      const icon=L.divIcon({className:'signal-icon',html:`<div class="signal-marker s${e.severity}" style="--cat:${m.color}"><span>${glyph}</span></div>`,iconSize:[22,22],iconAnchor:[11,11]});
       marker=L.marker([e.lat,e.lon],{icon,title:e.title});
     }
     marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>`);
@@ -157,7 +196,7 @@ function renderAll(){renderLayers();const events=filtered();$('visibleCount').te
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2400);}
 
 async function loadAll(manual=false){if(state.loading)return;state.loading=true;state.sources=[];renderSources();if(manual)toast('Refreshing public sources…');const jobs=[source('USGS',getUSGS),source('NASA EONET',getEONET),source('NOAA / NWS',getNWS),source('NOAA / NHC',getNHC),source('GDACS',getGDACS),source('NOAA SWPC',getSWPC),source('NASA DONKI',getDONKI),source('Launch Library 2',getLaunches),source('GDELT',getGDELT)];const chunks=await Promise.all(jobs);let events=dedupe(chunks.flat());if(!events.length){events=FALLBACK;toast('Live feeds unavailable — clearly labeled demo fallback active');}state.events=events;state.activeCats.clear();events.forEach(e=>state.activeCats.add(e.category));state.lastRefresh=new Date();state.loading=false;renderSources();renderAll();$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC`;if(manual)toast(`${events.length} signals loaded`);}
-function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));if(state.map)state.map.setView(VIEW.world[0],VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.6});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));}
+function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));if(state.map)state.map.setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.6});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));document.querySelectorAll('#mapThemes [data-theme]').forEach(b=>b.addEventListener('click',()=>{if(!state.map)return;setMapTheme(b.dataset.theme||'ops');}));}
 function clock(){const tick=()=>{$('utcClock').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());if(state.lastRefresh)$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC · ${rel(state.lastRefresh.toISOString())}`;};tick();setInterval(tick,1000);}
 function autoRefresh(){setInterval(()=>{if(!document.hidden)loadAll(false);},10*60*1000);}
 
