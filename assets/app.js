@@ -180,11 +180,46 @@ function renderMap(events){
     marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>`);
     marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.cluster.addLayer(marker);
   });
-  $('mapHint').textContent=state.mobileMap?'Pinch or use +/- to zoom · tap a dot for details':'Select a marker for details';
+  $('mapHint').textContent=state.mobileMap?'Pinch or use +/- to zoom · tap a dot for details':`${(THEME[state.mapTheme]||THEME.ops).hint} view · select a marker for details`;
 }
 function renderLayers(){const counts={};state.events.forEach(e=>counts[e.category]=(counts[e.category]||0)+1);const cats=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);$('layerList').innerHTML=cats.map(c=>{const m=meta(c),on=state.activeCats.has(c);return`<button type="button" class="layer-chip ${on?'':'off'}" data-cat="${esc(c)}" style="--cat:${m.color}"><i></i><span>${esc(m.label)}</span><b>${counts[c]}</b></button>`;}).join('');$('layerList').querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.cat;state.activeCats.has(c)?state.activeCats.delete(c):state.activeCats.add(c);renderAll();}));}
 function renderLegend(events){const seen=[];for(const e of events){if(!seen.includes(e.category))seen.push(e.category);if(seen.length>=6)break;}$('mapLegend').innerHTML=seen.map(c=>{const m=meta(c);return`<span class="legend-item" style="--cat:${m.color}"><i class="legend-dot"></i>${esc(m.label)}</span>`;}).join('');}
-function renderFeed(events){const shown=events.slice(0,70);$('feedCount').textContent=`${shown.length} shown`;if(!shown.length){$('eventFeed').innerHTML='<div class="empty-state">No signals match this view.<br>Expand the time window or reset filters.</div>';return;}$('eventFeed').innerHTML=shown.map(e=>{const m=meta(e.category),mapped=e.lat!==null&&e.lon!==null;return`<button type="button" class="feed-item ${state.selectedId===e.id?'selected':''}" data-id="${esc(e.id)}" style="--cat:${m.color}"><i class="feed-dot"></i><span><span class="feed-top"><b class="feed-cat">${esc(m.label)}</b><time class="feed-time">${esc(rel(e.updated))}</time></span><span class="feed-title">${esc(e.title)}</span><span class="feed-meta"><span>${esc(e.source||'Unknown')}${e.region?` · ${esc(e.region)}`:''}</span>${e.severity>=4?`<b class="feed-severity">${esc(sevLabel(e.severity))}</b>`:''}${mapped?'':'<b class="unmapped">feed only</b>'}</span></span></button>`;}).join('');$('eventFeed').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
+
+function diverseFeed(events,limit=64){
+  if(!events.length)return[];
+  const out=[],used=new Set(),byCat=new Map();
+  // Preserve a small number of highest-ranked items, but cap any one category.
+  const leadCounts={};
+  for(const e of events){
+    if(out.length>=8)break;
+    const n=leadCounts[e.category]||0;
+    if(n>=2)continue;
+    out.push(e);used.add(e.id);leadCounts[e.category]=n+1;
+  }
+  // Then round-robin the remaining categories so one noisy feed cannot own the rail.
+  for(const e of events){
+    if(used.has(e.id))continue;
+    if(!byCat.has(e.category))byCat.set(e.category,[]);
+    byCat.get(e.category).push(e);
+  }
+  const queues=[...byCat.entries()].sort((a,b)=>{
+    const ae=a[1][0],be=b[1][0];
+    return (be?.severity||0)-(ae?.severity||0) || parseTime(be?.updated)-parseTime(ae?.updated);
+  }).map(([,q])=>q);
+  let advanced=true;
+  while(out.length<limit&&advanced){
+    advanced=false;
+    for(const q of queues){
+      const e=q.shift();
+      if(!e)continue;
+      out.push(e);used.add(e.id);advanced=true;
+      if(out.length>=limit)break;
+    }
+  }
+  return out;
+}
+
+function renderFeed(events){const shown=diverseFeed(events,64);const domains=new Set(shown.map(e=>e.category)).size;$('feedCount').textContent=`${shown.length} shown · ${domains} domains`;if(!shown.length){$('eventFeed').innerHTML='<div class="empty-state">No signals match this view.<br>Expand the time window or reset filters.</div>';return;}$('eventFeed').innerHTML=shown.map(e=>{const m=meta(e.category),mapped=e.lat!==null&&e.lon!==null;return`<button type="button" class="feed-item ${state.selectedId===e.id?'selected':''}" data-id="${esc(e.id)}" style="--cat:${m.color}"><i class="feed-dot"></i><span><span class="feed-top"><b class="feed-cat">${esc(m.label)}</b><time class="feed-time">${esc(rel(e.updated))}</time></span><span class="feed-title">${esc(e.title)}</span><span class="feed-meta"><span>${esc(e.source||'Unknown')}${e.region?` · ${esc(e.region)}`:''}</span>${e.severity>=4?`<b class="feed-severity">${esc(sevLabel(e.severity))}</b>`:''}${mapped?'':'<b class="unmapped">feed only</b>'}</span></span></button>`;}).join('');$('eventFeed').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
 function renderSources(){const good=state.sources.filter(s=>s.status==='ok').length,total=state.sources.length,loading=state.sources.filter(s=>s.status==='loading').length;$('sourceHealth').textContent=`${good}/${total||9}`;$('sourceNote').textContent=loading?`${loading} syncing`:total?(good===total?'all nominal':'partial coverage'):'connecting';$('sourceGrid').innerHTML=state.sources.length?state.sources.map(s=>`<div class="source-item"><div class="source-title">${esc(s.name)}</div><div class="source-state ${s.status==='bad'?'bad':s.status==='loading'?'loading':''}"><i></i>${s.status==='ok'?'online':s.status==='bad'?'degraded':'syncing'}</div><div class="source-detail">${s.status==='ok'?`${s.count} records · ${s.ms} ms`:s.status==='bad'?esc(s.error||'No response'):'Awaiting response'}</div></div>`).join(''):'<div class="empty-state">Connecting to public sources…</div>';const chip=$('liveStatus');chip.className=`live-pill ${state.loading?'loading':good<total?'degraded':''}`;chip.querySelector('span').textContent=state.loading?'Connecting':good===total&&total?'Live feeds':good?'Partial feeds':'Offline';}
 function renderPriority(events){const list=events.filter(e=>e.severity>=3).slice(0,6);$('priorityQueue').innerHTML=list.length?list.map((e,i)=>`<button type="button" class="priority-item" data-id="${esc(e.id)}"><span class="priority-rank">${String(i+1).padStart(2,'0')}</span><span><span class="priority-name">${esc(e.title)}</span><span class="priority-meta">${esc(sevLabel(e.severity))} · ${esc(e.source)} · ${esc(rel(e.updated))}</span></span></button>`).join(''):'<div class="empty-state">No elevated or higher signals in this view.</div>';$('priorityQueue').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
 function renderTimeline(events){const now=Date.now(),bins=Array.from({length:24},()=>({count:0,high:0}));events.forEach(e=>{if(e.kind==='schedule')return;const age=(now-parseTime(e.updated))/3600000;if(age>=0&&age<24){const idx=23-Math.floor(age);bins[idx].count++;if(e.severity>=4)bins[idx].high++;}});const max=Math.max(1,...bins.map(b=>b.count));$('tempoLabel').textContent=`${bins.reduce((a,b)=>a+b.count,0)} events`;$('timeline').innerHTML=bins.map((b,i)=>{const h=Math.max(2,Math.round((b.count/max)*96)),hour=new Date(now-(23-i)*3600000).getUTCHours();return`<span class="timeline-col" title="${b.count} signal(s) · ${String(hour).padStart(2,'0')}:00 UTC"><i class="timeline-bar ${b.high?'hot':''}" style="height:${h}px"></i>${i%4===3?`<small>${String(hour).padStart(2,'0')}</small>`:'<small>&nbsp;</small>'}</span>`;}).join('');}
