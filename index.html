@@ -1,254 +1,46 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#071014">
-  <meta name="description" content="WATCHTOWER — public-source global situational awareness.">
-  <title>WATCHTOWER // Global Situation</title>
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="preconnect" href="https://basemaps.cartocdn.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-  <style>
-:root{
-  --ink:#06070a;--ink2:#0a0d12;--panel:#0d1118;--panel2:#111722;--line:#232b38;--line2:#171e29;
-  --text:#f4f1ea;--sub:#c7c5bf;--muted:#8d96a4;--muted2:#5f6a79;
-  --gold:#f0c36b;--coral:#ff705f;--blue:#74b8ff;--violet:#ae92ff;--mint:#66d1b7;--orange:#f39a6d;
-  --r:18px;--shadow:0 24px 70px rgba(0,0,0,.28)
-}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{color:inherit}body{overflow-x:hidden;background:radial-gradient(70rem 35rem at 50% -10%,rgba(74,102,160,.16),transparent 60%),radial-gradient(36rem 28rem at 92% 20%,rgba(255,112,95,.07),transparent 66%),linear-gradient(180deg,#080b10 0,#050609 100%)}
-.app-shell{width:100%;min-width:0;padding:0 14px 24px}.topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 8px;border-bottom:1px solid rgba(255,255,255,.055)}
-.brand-block{display:flex;align-items:center;gap:12px;min-width:0}.mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#171c25,#0b0f15);border:1px solid rgba(240,195,107,.24);box-shadow:inset 0 1px rgba(255,255,255,.04)}.mark span{display:none}.mark b{font-size:13px;color:var(--gold);letter-spacing:.06em}.brand-row{display:flex;align-items:center;gap:9px}.brand-row h1{font-size:18px;letter-spacing:.20em;margin:0;font-weight:900}.version{font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:#d8c38e;border:1px solid rgba(240,195,107,.2);background:rgba(240,195,107,.06);padding:5px 7px;border-radius:999px}.brand-block p{margin:4px 0 0;font-size:9px;color:var(--muted2);letter-spacing:.02em}.brand-sep{color:#3f4956;margin:0 4px}.top-actions{display:flex;align-items:center;gap:9px}.live-pill,.clock-block,.icon-btn{height:34px;border:1px solid rgba(255,255,255,.07);background:#0c1016;border-radius:999px;display:flex;align-items:center}.live-pill{padding:0 11px;gap:7px;color:#a8b1bd;font-size:9px;font-weight:750}.live-pill i{width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 10px rgba(102,209,183,.5)}.live-pill.loading i{background:var(--gold)}.live-pill.degraded i{background:var(--coral)}.clock-block{padding:0 11px;gap:7px}.clock-block span{font-size:8px;color:var(--muted2);letter-spacing:.12em}.clock-block strong{font:800 10px ui-monospace,monospace}.icon-btn{width:34px;justify-content:center;cursor:pointer;color:var(--muted);transition:.15s}.icon-btn:hover{color:var(--text);border-color:rgba(240,195,107,.25)}
-main{width:100%;min-width:0}.workspace{position:relative;width:100%;min-width:0}.map-card{position:relative;border:1px solid rgba(255,255,255,.06);border-radius:26px;overflow:hidden;background:#090c11;box-shadow:0 30px 80px rgba(0,0,0,.26)}
-.map-header{min-height:126px;padding:20px 20px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:22px;background:linear-gradient(115deg,#111824 0%,#0b1018 56%,#151017 100%);border-bottom:1px solid rgba(255,255,255,.045)}.kicker{display:block;font-size:8px;letter-spacing:.18em;color:var(--gold);font-weight:900;text-transform:uppercase}.map-header h2{font-size:34px;line-height:1.02;letter-spacing:-.05em;margin:7px 0 6px;font-weight:780}.map-subtitle{margin:0;color:#8c96a2;font-size:11px;line-height:1.45;max-width:620px}.map-toolbar{display:flex;flex-direction:column;align-items:flex-end;gap:7px;max-width:62%}.view-pills,.theme-pills,.mode-pills,.time-pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.view-pills button,.theme-pills button,.mode-pills button,.time-pills button,.text-btn{height:29px;border:1px solid rgba(255,255,255,.07);background:#0d1219;border-radius:999px;padding:0 10px;font-size:8.5px;font-weight:800;color:#7f8997;cursor:pointer;transition:.14s}.view-pills button:hover,.theme-pills button:hover,.mode-pills button:hover,.time-pills button:hover,.text-btn:hover{color:#dcdedc;border-color:rgba(240,195,107,.18)}.view-pills button.active,.theme-pills button.active,.mode-pills button.active,.time-pills button.active{background:rgba(240,195,107,.10);border-color:rgba(240,195,107,.32);color:#f2d28e;box-shadow:inset 0 0 0 1px rgba(240,195,107,.04)}
-.control-bar{display:flex;align-items:center;gap:8px;margin:0;padding:10px 14px;background:#090d13;border-bottom:1px solid rgba(255,255,255,.04)}.search{height:34px;min-width:0;flex:1;display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.06);border-radius:11px;background:#0c1118;padding:0 11px}.search span{color:#687483}.search input{width:100%;border:0;outline:0;background:transparent;color:var(--text);font-size:10px}.search input::placeholder{color:#4f5a68}.severity{height:34px;display:flex;align-items:center;gap:7px;padding-left:10px;border:1px solid rgba(255,255,255,.06);border-radius:11px;background:#0c1118;color:#5e6976;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.severity select{height:100%;border:0;outline:0;background:transparent;color:#d6d7d4;padding:0 8px;font-size:9px}.text-btn{border-radius:11px;height:34px}.time-pills{flex-wrap:nowrap}
-.layer-scroll{display:flex;gap:7px;overflow-x:auto;padding:9px 14px 10px;background:#080c11;border-bottom:1px solid rgba(255,255,255,.035);scrollbar-width:none}.layer-scroll::-webkit-scrollbar{display:none}.layer-chip{height:29px;flex:0 0 auto;display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.055);background:#0c1117;border-radius:999px;padding:0 10px;color:#8c95a1;font-size:8.5px;font-weight:750;cursor:pointer}.layer-chip i{width:6px;height:6px;border-radius:50%;background:var(--cat);box-shadow:0 0 8px color-mix(in srgb,var(--cat) 45%,transparent)}.layer-chip b{font:700 8px ui-monospace,monospace;color:#596471}.layer-chip.off{opacity:.38}
-.map-stage{height:clamp(570px,48vw,780px);position:relative;background:#080b10;overflow:hidden}.map-stage:before{content:"";position:absolute;inset:0;z-index:430;pointer-events:none;background:linear-gradient(180deg,rgba(7,8,10,.22),transparent 18%,transparent 78%,rgba(7,8,10,.26)),radial-gradient(circle at 18% 18%,rgba(116,184,255,.05),transparent 26%),radial-gradient(circle at 82% 20%,rgba(255,112,95,.04),transparent 26%)}#map{position:absolute;inset:0;z-index:1;background:#080b10}.map-grid{position:absolute;inset:0;z-index:410;pointer-events:none;opacity:.06;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:88px 88px}.map-vignette{position:absolute;inset:0;z-index:420;pointer-events:none;box-shadow:inset 0 0 110px rgba(0,0,0,.40)}
-.map-summary{display:none}.conflict-lens{position:absolute;right:18px;top:18px;z-index:520;width:94px;height:94px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(255,112,95,.11),rgba(9,11,15,.90) 62%);border:1px solid rgba(255,112,95,.20);box-shadow:0 18px 45px rgba(0,0,0,.22);pointer-events:none}.conflict-lens:before{content:"";position:absolute;inset:10px;border:1px dashed rgba(255,112,95,.14);border-radius:50%}.conflict-lens span,.conflict-lens small,.conflict-lens strong{position:relative}.conflict-lens span{font-size:6px;letter-spacing:.18em;color:#ad756e;font-weight:900}.conflict-lens strong{font-size:25px;margin:2px 0;color:#ffd0c8}.conflict-lens small{font-size:6px;color:#675a5b}.map-hint{position:absolute;left:18px;bottom:17px;z-index:520;padding:9px 11px;border-radius:11px;background:rgba(7,9,13,.83);border:1px solid rgba(255,255,255,.055);color:#8e99a7;font-size:8px}.map-footer{min-height:38px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#080c11;border-top:1px solid rgba(255,255,255,.035)}.map-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.legend-item{display:flex;align-items:center;gap:5px;font-size:7.5px;color:#7e8895}.legend-dot{width:6px;height:6px;border-radius:50%;background:var(--cat)}.map-note{font-size:7px;color:#3f4955;text-align:right;max-width:680px}
-.overview-strip.hero-metrics{position:absolute;z-index:525;left:18px;top:18px;width:auto;max-width:690px;display:flex;align-items:stretch;gap:0;margin:0;padding:0;border:1px solid rgba(255,255,255,.06);border-radius:15px;overflow:hidden;background:rgba(7,9,13,.86);box-shadow:0 16px 45px rgba(0,0,0,.20)}.hero-metrics .posture-card,.hero-metrics .stat{position:relative;min-width:105px;min-height:58px;padding:10px 12px;border:0;border-right:1px solid rgba(255,255,255,.055);background:transparent}.hero-metrics .posture-card{min-width:168px}.hero-metrics .stat:last-child{border-right:0}.posture-copy span,.stat span{display:block;font-size:6.5px;text-transform:uppercase;letter-spacing:.12em;color:#606b78;font-weight:900}.posture-copy strong,.stat strong{display:block;margin-top:5px;font-size:14px;line-height:1;color:#e8e6e0}.stat small,.posture-score,.posture-track{font-size:6.5px;color:#596471}.posture-score{position:absolute;right:10px;top:10px}.posture-score b{font-size:12px;color:var(--gold)}.posture-track{height:2px;position:absolute;left:12px;right:12px;bottom:8px;background:#171d25;border-radius:2px;overflow:hidden}.posture-track i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--coral))}
-.theater-band{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px;padding:9px 12px;background:#090d13;border-top:1px solid rgba(255,255,255,.04)}.theater-band-label{padding:5px 6px}.theater-band-label span{display:block;font-size:7px;letter-spacing:.14em;color:#c5796f;font-weight:900}.theater-band-label small{display:block;margin-top:4px;color:#505b68;font-size:7px}.theater-strip{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.theater-strip::-webkit-scrollbar{display:none}.theater-card{min-width:188px;flex:0 0 188px;display:grid;grid-template-columns:3px 1fr auto;gap:8px;align-items:center;padding:8px 9px;border:1px solid rgba(255,255,255,.045);border-radius:10px;background:#0d1118;text-align:left;cursor:pointer}.theater-card>i{width:3px;height:24px;border-radius:2px;background:var(--coral)}.theater-card b{display:block;font-size:8.5px;color:#d9d9d5}.theater-card small{display:block;margin-top:2px;font-size:6.5px;color:#515c68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.theater-card em{font-style:normal;color:#5f6976;font-size:9px}
-.intel-column{position:absolute;z-index:610;right:24px;top:178px;width:350px;display:grid;gap:9px;pointer-events:none}.brief-card,.feed-card{pointer-events:auto;border:1px solid rgba(255,255,255,.06);border-radius:16px;background:rgba(8,11,16,.92);box-shadow:0 18px 45px rgba(0,0,0,.24);overflow:hidden}.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 13px 9px}.section-heading h2{margin:3px 0 0;font-size:16px;letter-spacing:-.025em}.section-heading>span,.local-badge{font-size:6.5px;color:#626e7b}.local-badge{padding:4px 6px;border:1px solid rgba(255,255,255,.06);border-radius:999px}.brief-body{padding:3px 13px 8px;font-size:10.5px;line-height:1.55;color:#d0d1ce}.brief-note{margin:5px 13px 11px;padding-top:8px;border-top:1px solid rgba(255,255,255,.045);font-size:6.8px;line-height:1.4;color:#525d68}.brief-skeleton,.feed-placeholder{background:linear-gradient(90deg,#111720,#18202b,#111720);background-size:200% 100%}.brief-skeleton{height:7px;border-radius:5px;margin:7px 0}.brief-skeleton.wide{width:92%}.brief-skeleton.mid{width:62%}.feed-card{max-height:336px}.feed-heading{border-bottom:1px solid rgba(255,255,255,.045)}.feed{max-height:275px;overflow:auto;padding:5px 6px 7px;scrollbar-width:thin}.feed-item{width:100%;border:0;border-bottom:1px solid rgba(255,255,255,.04);background:transparent;text-align:left;padding:9px 8px;display:grid;grid-template-columns:7px 1fr;gap:8px;cursor:pointer}.feed-item:last-child{border-bottom:0}.feed-item:hover,.feed-item.selected{background:#101620}.feed-dot{width:6px;height:6px;border-radius:50%;background:var(--cat);margin-top:3px}.feed-top{display:flex;justify-content:space-between;gap:7px}.feed-cat{font-size:6.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cat)}.feed-time{font:700 6.5px ui-monospace,monospace;color:#55606c}.feed-title{display:block;margin-top:3px;font-size:9.5px;line-height:1.25;color:#dcddd9}.feed-meta{display:flex;gap:5px;align-items:center;margin-top:4px;min-width:0;font-size:6.6px;color:#596470}.feed-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.feed-severity,.report-badge,.reference-badge,.unmapped{font-size:6px;padding:2px 4px;border-radius:999px;border:1px solid rgba(255,255,255,.06);white-space:nowrap}.feed-severity{color:var(--gold)}.report-badge{color:#c1aeff}.reference-badge{color:#ff9b8c}
-.insight-grid{display:grid;grid-template-columns:1.08fr .92fr 1fr;gap:12px;margin-top:12px;content-visibility:auto;contain-intrinsic-size:360px}.insight-card{min-height:250px;padding:5px 7px 9px;border:1px solid rgba(255,255,255,.055);border-radius:17px;background:#0a0e14}.insight-card .section-heading{border-bottom:1px solid rgba(255,255,255,.04)}.timeline{height:175px;padding:18px 10px 8px;display:grid;grid-template-columns:repeat(24,1fr);align-items:end;gap:3px}.timeline-col{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}.timeline-bar{width:100%;min-height:2px;border-radius:3px;background:linear-gradient(to top,rgba(116,184,255,.16),rgba(116,184,255,.75))}.timeline-bar.hot{background:linear-gradient(to top,rgba(240,195,107,.25),rgba(255,112,95,.92))}.timeline-col small{font:700 6px ui-monospace,monospace;color:#495462}.priority-list{padding:7px}.priority-item{width:100%;border:1px solid rgba(255,255,255,.045);border-radius:11px;background:#0d1118;text-align:left;padding:8px 9px;margin-bottom:6px;display:grid;grid-template-columns:28px 1fr;gap:7px;cursor:pointer}.priority-rank{font:800 11px ui-monospace,monospace;color:#d47b70}.priority-name{font-size:8.5px;color:#d8d9d6}.priority-meta{display:block;margin-top:2px;font-size:6.3px;color:#505a66}.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:7px}.source-item{min-height:54px;border:1px solid rgba(255,255,255,.04);border-radius:10px;background:#0d1118;padding:8px}.source-title{font-size:7.5px;font-weight:800}.source-state{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:6.5px;text-transform:uppercase;color:var(--mint)}.source-state.bad{color:var(--coral)}.source-state.loading{color:var(--gold)}.source-state i{width:5px;height:5px;border-radius:50%;background:currentColor}.source-detail{margin-top:2px;font-size:6px;color:#4b5662}.empty-state{padding:20px;color:#5c6773;text-align:center;font-size:8px}
-footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 2px 0;color:#39434f;font-size:6.5px}.detail-panel{position:fixed;z-index:2500;right:18px;top:84px;width:min(420px,calc(100vw - 36px));padding:18px;background:#0b0f15;border:1px solid rgba(255,255,255,.08);border-radius:18px;box-shadow:var(--shadow);transform:translateX(calc(100% + 40px));transition:transform .18s ease}.detail-panel.open{transform:none}.detail-close{position:absolute;right:8px;top:7px;width:32px;height:32px;border:0;background:transparent;color:#737e8b;font-size:20px;cursor:pointer}.detail-tags{display:flex;gap:7px;margin-right:35px}.detail-tags span,.detail-tags b{font-size:7px;text-transform:uppercase;letter-spacing:.08em}.detail-tags span{color:var(--gold)}.detail-tags b{color:#d68a80}.detail-panel h3{margin:9px 30px 9px 0;font-size:20px}.detail-meta,.detail-coords{font-size:8px;line-height:1.5;color:#6d7885}.detail-coords{font-family:ui-monospace,monospace}.detail-panel p{font-size:10px;line-height:1.55;color:#b9bdba}.detail-panel a{color:var(--gold);font-size:9px;text-decoration:none}.toast{position:fixed;z-index:3000;left:50%;bottom:18px;transform:translate(-50%,12px);opacity:0;background:#0d1118;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:8px 11px;font-size:8px;transition:.15s}.toast.show{opacity:1;transform:translate(-50%,0)}
-.leaflet-container{font-family:inherit;background:#080b10}.leaflet-control-zoom{border:1px solid rgba(255,255,255,.07)!important;border-radius:11px!important;overflow:hidden;box-shadow:none!important}.leaflet-control-zoom a{background:#0b0f15!important;color:#b6bdc7!important;border-color:rgba(255,255,255,.055)!important}.leaflet-control-attribution{background:rgba(5,7,10,.72)!important;color:#3b4551!important;font-size:6px!important}.leaflet-control-attribution a{color:#536171!important}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0c1016;color:var(--text);border:1px solid rgba(255,255,255,.07);box-shadow:0 18px 45px rgba(0,0,0,.35)}.leaflet-popup-content{margin:10px 11px;font-size:9px}.popup-cat{font-size:6.5px;color:var(--gold);font-weight:900;letter-spacing:.08em;text-transform:uppercase}.popup-title{margin-top:3px;font-size:10px;font-weight:800}.popup-note{margin-top:5px;color:#6e7985;font-size:7px}.conflict-anchor-icon{background:transparent!important;border:0!important}.conflict-anchor{width:24px;height:24px;display:grid;place-items:center;position:relative}.conflict-anchor:before{content:"";position:absolute;inset:3px;background:#24151a;border:1px solid var(--cat);transform:rotate(45deg);border-radius:4px;box-shadow:0 0 15px rgba(255,112,95,.18)}.conflict-anchor span{display:none}.conflict-anchor b{position:relative;font-size:9px;color:#ffd0c8}.conflict-zone{pointer-events:none}.heat-bloom{pointer-events:none}.touch-signal{pointer-events:auto}
-#map.theme-ops .leaflet-tile-pane{filter:saturate(.72) contrast(1.08) brightness(.77)}#map.theme-atlas .leaflet-tile-pane{filter:saturate(.55) contrast(1.02) brightness(.86)}#map.theme-sat .leaflet-tile-pane{filter:saturate(.72) contrast(1.05) brightness(.66)}
-#buildStamp{border-color:rgba(240,195,107,.18)!important;color:#8f7a51!important;background:rgba(6,7,10,.78)!important}
-@media(max-width:1180px){.map-toolbar{max-width:none}.intel-column{position:static;width:auto;display:grid;grid-template-columns:1fr 1fr;margin-top:10px}.brief-card,.feed-card{max-height:none}.feed{max-height:350px}.overview-strip.hero-metrics{max-width:calc(100% - 132px)}.insight-grid{grid-template-columns:1fr}}
-@media(max-width:760px){.app-shell{padding:0 8px 18px}.topbar{height:58px}.brand-row h1{font-size:15px}.brand-block p,.clock-block{display:none}.map-header{min-height:0;padding:15px 13px 11px;display:block}.map-header h2{font-size:26px}.map-toolbar{margin-top:12px;align-items:flex-start;max-width:none}.view-pills,.theme-pills,.mode-pills{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none}.control-bar{flex-wrap:wrap;padding:9px}.search{flex-basis:100%}.time-pills{flex:1;overflow-x:auto}.severity{flex:1}.map-stage{height:520px}.overview-strip.hero-metrics{left:9px;top:9px;right:86px;max-width:none;overflow-x:auto}.hero-metrics .posture-card{min-width:130px}.hero-metrics .stat{min-width:82px}.hero-metrics .stat:nth-of-type(3),.hero-metrics .stat:nth-of-type(4){display:none}.conflict-lens{width:70px;height:70px;right:9px;top:9px}.conflict-lens strong{font-size:19px}.conflict-lens small{display:none}.map-hint{left:9px;bottom:9px}.map-footer{align-items:flex-start;flex-direction:column}.map-note{text-align:left}.theater-band{grid-template-columns:1fr}.intel-column{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr 1fr}.insight-grid{grid-template-columns:1fr}.detail-panel{top:70px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
-</style>
-</head>
-<body>
-<div class="app-shell" id="app">
-  <header class="topbar">
-    <div class="brand-block">
-      <div class="mark" aria-hidden="true"><span></span><b>W</b></div>
-      <div>
-        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.90</span></div>
-        <p>Public-source global situational awareness <span class="brand-sep">/</span> hazards · conflict · space · watchfloor</p>
-      </div>
-    </div>
-    <div class="top-actions">
-      <div class="live-pill loading" id="liveStatus"><i></i><span>Connecting</span></div>
-      <div class="clock-block"><span>UTC</span><strong id="utcClock">--:--:--</strong></div>
-      <button id="refreshBtn" class="icon-btn" type="button" aria-label="Refresh public sources" title="Refresh public sources">↻</button>
-    </div>
-  </header>
-
-  <main>
-    <section class="overview-strip" aria-label="Operational overview">
-      <div class="posture-card">
-        <div class="posture-copy">
-          <span>Global posture</span>
-          <strong id="postureLabel">Building picture</strong>
-        </div>
-        <div class="posture-score"><b id="postureScore">--</b><small>/100</small></div>
-        <div class="posture-track"><i id="postureBar"></i></div>
-      </div>
-      <div class="stat"><span>Signals</span><strong id="visibleCount">—</strong><small id="visibleNote">syncing</small></div>
-      <div class="stat priority"><span>Priority</span><strong id="priorityCount">—</strong><small>high + critical</small></div>
-      <div class="stat"><span>Mapped</span><strong id="mappedCount">—</strong><small>geolocated</small></div>
-      <div class="stat"><span>Sources</span><strong id="sourceHealth">0/0</strong><small id="sourceNote">connecting</small></div>
-    </section>
-
-    <section class="control-bar" aria-label="Filters">
-      <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Search places, events, sources…" autocomplete="off"></label>
-      <div class="time-pills" id="timeFilters" aria-label="Time window">
-        <button type="button" data-hours="6">6h</button>
-        <button type="button" data-hours="24">24h</button>
-        <button type="button" data-hours="168" class="active">7d</button>
-        <button type="button" data-hours="720">30d</button>
-      </div>
-      <label class="severity">Severity
-        <select id="severityFilter" aria-label="Minimum severity">
-          <option value="1">All</option>
-          <option value="2">Watch +</option>
-          <option value="3">Elevated +</option>
-          <option value="4">High +</option>
-        </select>
-      </label>
-      <button id="resetBtn" class="text-btn" type="button">Reset</button>
-    </section>
-
-    <section class="workspace">
-      <article class="map-card">
-        <div class="map-header">
-          <div>
-            <span class="kicker">LIVE GLOBAL PICTURE</span>
-            <h2>The world, at a glance.</h2><p class="map-subtitle">A calm first look at conflict, hazards, and high-signal activity. Drill in when you want the detail.</p>
-          </div>
-          <div class="map-toolbar">
-            <div class="view-pills" id="mapPresets" aria-label="Map region presets">
-              <button type="button" data-view="world" class="active">World</button>
-              <button type="button" data-view="conus">U.S.</button>
-              <button type="button" data-view="mena">MENA</button>
-              <button type="button" data-view="europe">Europe</button>
-              <button type="button" data-view="pacific">Pacific</button>
-            </div>
-            <div class="theme-pills" id="mapThemes" aria-label="Map visual themes">
-              <button type="button" data-theme="ops" class="active">Night Ops</button>
-              <button type="button" data-theme="atlas">Atlas</button>
-              <button type="button" data-theme="sat">Satellite</button>
-            </div>
-            <div class="mode-pills" id="mapModes" aria-label="Map display modes">
-              <button type="button" data-mode="overview" class="active">Overview</button>
-              <button type="button" data-mode="conflict">Conflict</button>
-              <button type="button" data-mode="hazards">Hazards</button>
-              <button type="button" data-mode="signals">Signals</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="layer-scroll" id="layerList" aria-label="Map layers">
-          <div class="layer-skeleton"></div><div class="layer-skeleton"></div><div class="layer-skeleton"></div><div class="layer-skeleton"></div>
-        </div>
-
-        <div class="map-stage">
-          <div class="map-grid" aria-hidden="true"></div>
-          <div id="map" aria-label="Interactive event map">
-            <div class="map-loading"><div class="radar-loader"><i></i><i></i></div><strong>Building global picture</strong><span>Connecting to public sources…</span></div>
-          </div>
-          <div class="map-vignette" aria-hidden="true"></div>
-          <div class="map-summary"><strong id="mapSignalCount">0</strong><span>signals on map</span></div>
-          <div class="conflict-lens" id="conflictLens" aria-label="Conflict coverage"><span>CONFLICT</span><strong id="conflictCount">—</strong><small>tracked theaters</small></div>
-          <div class="map-hint" id="mapHint">Select a marker for details</div>
-        </div>
-
-        <div class="map-footer">
-          <div id="mapLegend" class="map-legend"></div>
-          <div class="map-note">Conflict zones are approximate reference areas. Reporting markers indicate location mentions, not independently verified combat events.</div>
-        </div>
-        <div class="theater-band">
-          <div class="theater-band-label"><span>THEATER WATCH</span><small>selected ongoing conflicts</small></div>
-          <div class="theater-strip" id="theaterStrip" aria-label="Selected conflict theaters"></div>
-        </div>
-      </article>
-
-      <aside class="intel-column">
-        <section class="brief-card">
-          <div class="section-heading">
-            <div><span class="kicker">NOW</span><h2>What matters</h2></div>
-            <span class="local-badge">AUTO</span>
-          </div>
-          <div class="brief-body" id="sitrepText">
-            <div class="brief-skeleton wide"></div><div class="brief-skeleton"></div><div class="brief-skeleton mid"></div>
-          </div>
-          <p class="brief-note">Automated summary of visible public-source records. Conflict reference areas are approximate; media-location signals are reporting, not independent verification.</p>
-        </section>
-
-        <section class="feed-card">
-          <div class="section-heading feed-heading">
-            <div><span class="kicker">LIVE SIGNALS</span><h2>Top activity</h2></div>
-            <span id="feedCount">syncing</span>
-          </div>
-          <div class="feed" id="eventFeed" aria-live="polite">
-            <div class="feed-placeholder"></div><div class="feed-placeholder"></div><div class="feed-placeholder"></div><div class="feed-placeholder"></div>
-          </div>
-        </section>
-      </aside>
-    </section>
-
-    <section class="insight-grid">
-      <article class="insight-card tempo-card">
-        <div class="section-heading"><div><span class="kicker">TEMPO</span><h2>24-hour activity</h2></div><span id="tempoLabel">—</span></div>
-        <div class="timeline" id="timeline"></div>
-      </article>
-
-      <article class="insight-card priority-card">
-        <div class="section-heading"><div><span class="kicker">WATCH FLOOR</span><h2>Priority queue</h2></div><span>ranked</span></div>
-        <div class="priority-list" id="priorityQueue"><div class="empty-state">Waiting for current signals…</div></div>
-      </article>
-
-      <article class="insight-card sources-card">
-        <div class="section-heading"><div><span class="kicker">COLLECTORS</span><h2>Source health</h2></div><span id="lastRefresh">not synced</span></div>
-        <div class="source-grid" id="sourceGrid"><div class="empty-state">Connecting to public sources…</div></div>
-      </article>
-    </section>
-  </main>
-
-  <footer>
-    <span>WATCHTOWER · public data only</span>
-    <span>Sources can fail, lag, duplicate, or misreport events</span>
-    <span>Not an official government product</span>
-  </footer>
-
-  <aside class="detail-panel" id="detailDrawer" aria-hidden="true">
-    <button class="detail-close" id="drawerClose" type="button" aria-label="Close details">×</button>
-    <div class="detail-tags"><span id="drawerCategory">SIGNAL</span><b id="drawerSeverity">WATCH</b></div>
-    <h3 id="drawerTitle">Signal details</h3>
-    <div class="detail-meta" id="drawerMeta"></div>
-    <div class="detail-coords" id="drawerCoords"></div>
-    <p id="drawerSummary"></p>
-    <a id="drawerLink" href="#" target="_blank" rel="noopener noreferrer">Open source page ↗</a>
-  </aside>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <div id="buildStamp" style="position:fixed;right:12px;bottom:10px;z-index:3000;padding:5px 8px;border-radius:999px;background:rgba(5,10,16,.82);border:1px solid rgba(124,224,255,.22);color:#9fdff2;font:700 9px/1.2 ui-monospace,monospace;letter-spacing:.06em;backdrop-filter:blur(8px);pointer-events:none">BUILD 0.90 · CANVAS · CINEMATIC</div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-(() => {
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05070b"><meta name="description" content="WATCHTOWER — public-source global situational awareness."><title>WATCHTOWER // Vector Watchfloor</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>:root{--bg:#05070b;--panel:#080d14;--panel2:#0a1018;--line:rgba(255,255,255,.055);--text:#f2efe8;--muted:#7f8b95;--gold:#f2bd68;--coral:#ff6476;--ice:#70cfff;--violet:#a98bff;--mint:#65dfbc}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#05070b;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}body{background:radial-gradient(65rem 34rem at 40% -10%,rgba(71,104,160,.16),transparent 60%),radial-gradient(38rem 28rem at 96% 14%,rgba(255,100,118,.07),transparent 62%),#05070b}.app-shell{padding:12px 14px 26px}.topbar{height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border:1px solid var(--line);border-radius:18px;background:#080d14}.brand-block{display:flex;align-items:center;gap:11px}.mark{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(242,189,104,.28);background:#0d131c;color:var(--gold);font-weight:900}.mark span{display:none}.brand-row{display:flex;gap:8px;align-items:center}.brand-row h1{margin:0;font-size:17px;letter-spacing:.16em}.version{font:900 8px ui-monospace,monospace;color:#1a1209;background:var(--gold);padding:4px 7px;border-radius:999px}.brand-block p{margin:3px 0 0;font-size:8px;color:#68747e;letter-spacing:.04em}.top-actions{display:flex;align-items:center;gap:8px}.live-pill,.clock-block,.icon-btn{height:33px;display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:11px;background:#0a1018;color:#a3adb5;padding:0 10px;font-size:8px}.live-pill i{width:6px;height:6px;border-radius:50%;background:#ff826e}.live-pill:not(.loading):not(.degraded) i{background:#65dfbc}.clock-block span{font-size:6px;color:#596671}.clock-block strong{font:700 9px ui-monospace,monospace}.icon-btn{width:33px;padding:0;justify-content:center;cursor:pointer}.control-bar{margin:11px 0;display:flex;align-items:center;gap:7px;padding:8px;border:1px solid var(--line);border-radius:15px;background:#080d13}.search{flex:1;height:35px;display:flex;align-items:center;gap:7px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#0a1018;color:#63717b}.search input{width:100%;background:none;border:0;outline:0;color:#dce1e3;font-size:10px}.time-pills,.view-pills,.mode-pills,.theme-pills{display:flex;gap:5px}.time-pills button,.view-pills button,.mode-pills button,.theme-pills button,.text-btn{height:31px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:#0a1018;color:#82909a;font-size:8px;font-weight:800;cursor:pointer}.time-pills button.active,.view-pills button.active,.mode-pills button.active,.theme-pills button.active{color:#f7d8a5;background:rgba(242,189,104,.1);border-color:rgba(242,189,104,.3)}.severity{height:35px;display:flex;align-items:center;gap:6px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:#0a1018;color:#65727c;font-size:7px;font-weight:800;text-transform:uppercase}.severity select{border:0;outline:0;background:none;color:#d9dfe1;font-size:8px}.text-btn{border-radius:10px}.hero{border:1px solid var(--line);border-radius:23px;overflow:hidden;background:#070b11}.hero-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:18px 20px 14px;border-bottom:1px solid var(--line)}.kicker{display:block;color:var(--gold);font-size:7px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.hero-head h2{font-size:31px;line-height:1.02;letter-spacing:-.045em;margin:5px 0 4px}.hero-head p{margin:0;color:#7d8993;font-size:10px}.hero-controls{display:flex;flex-direction:column;align-items:flex-end;gap:6px}.hero-grid{display:grid;grid-template-columns:minmax(230px,.62fr) minmax(680px,2.35fr) minmax(300px,.82fr);min-height:760px}.left-rail,.right-rail{padding:18px;background:linear-gradient(180deg,#080d14,#060a0f);position:relative;z-index:5}.left-rail{border-right:1px solid var(--line)}.right-rail{border-left:1px solid var(--line);display:flex;flex-direction:column;gap:16px}.posture-main{padding-bottom:16px;border-bottom:1px solid var(--line)}.posture-main>.label{font-size:7px;color:#66747e;text-transform:uppercase;letter-spacing:.12em;font-weight:900}.posture-row{display:flex;align-items:flex-end;justify-content:space-between;margin-top:8px}.posture-copy strong{font-size:20px}.posture-score{display:flex;align-items:baseline}.posture-score b{font-size:42px;line-height:.9;color:var(--gold)}.posture-score small{font-size:8px;color:#5e6b76}.posture-track{height:3px;background:#18232d;border-radius:4px;margin-top:13px;overflow:hidden}.posture-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--coral))}.metric-stack{padding:10px 0 15px;border-bottom:1px solid var(--line)}.metric{display:flex;align-items:center;justify-content:space-between;padding:8px 0}.metric span{font-size:7px;color:#697681;text-transform:uppercase;letter-spacing:.09em;font-weight:900}.metric strong{font-size:19px}.metric small{display:block;font-size:6.5px;color:#53616c;text-align:right;margin-top:2px}.left-note{font-size:8px;line-height:1.55;color:#65727d;margin-top:14px}.left-note strong{color:#c4cbcf}.map-core{position:relative;min-width:0;background:radial-gradient(circle at 50% 45%,#0a111a,#05080d 72%);overflow:hidden}.map-stage,#map{position:absolute;inset:0;background:var(--ocean,#060A10)}.map-stage:after{content:"";position:absolute;inset:0;z-index:430;pointer-events:none;box-shadow:inset 0 0 90px rgba(0,0,0,.38);background:radial-gradient(circle at 50% 45%,transparent 60%,rgba(0,0,0,.16) 100%)}.map-grid{position:absolute;inset:0;z-index:410;pointer-events:none;opacity:.045;background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:86px 86px}.map-vignette{display:none}.map-summary{position:absolute;z-index:520;left:13px;top:13px;padding:10px 11px;border-radius:11px;background:#090e15;border:1px solid var(--line);display:flex;align-items:baseline;gap:6px}.map-summary strong{font-size:21px;color:var(--gold)}.map-summary span{font-size:6px;color:#65727d;text-transform:uppercase;font-weight:900}.conflict-lens{position:absolute;z-index:520;right:13px;top:13px;width:75px;height:75px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0d13;border:1px solid rgba(255,100,118,.25);color:#ff8b99}.conflict-lens span{font-size:5.5px;letter-spacing:.12em;font-weight:900}.conflict-lens strong{font-size:20px;line-height:1;margin:3px 0}.conflict-lens small{font-size:5.5px;color:#7b5258}.map-hint{position:absolute;z-index:520;left:13px;bottom:13px;padding:8px 10px;border-radius:9px;background:#090e15;border:1px solid var(--line);font-size:7px;color:#85929c}.continent-label{background:transparent!important;border:0!important;text-align:center}.continent-label span{font:800 9px ui-sans-serif,system-ui;color:#5d7080;letter-spacing:.07em;text-shadow:0 2px 7px #05070b}.leaflet-container{font-family:inherit}.leaflet-control-zoom{border:1px solid var(--line)!important;border-radius:9px!important;overflow:hidden;box-shadow:none!important}.leaflet-control-zoom a{background:#0a1017!important;color:#aab5bc!important;border-color:var(--line)!important}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0b1119;color:#e7ecee;border:1px solid rgba(255,255,255,.07);box-shadow:0 18px 45px rgba(0,0,0,.36)}.leaflet-popup-content{margin:10px 11px;font-size:9px}.popup-cat{font-size:6px;color:var(--gold);font-weight:900;letter-spacing:.08em;text-transform:uppercase}.popup-title{margin-top:3px;font-size:10px;font-weight:800}.popup-note{margin-top:5px;font-size:7px;color:#72808a}.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.section-heading h2{margin:4px 0 0;font-size:17px;letter-spacing:-.025em}.section-heading>span{font-size:6px;color:#62707a}.local-badge{padding:4px 7px;border-radius:999px;color:var(--gold)!important;background:rgba(242,189,104,.08);border:1px solid rgba(242,189,104,.16)}.brief-body{font-size:11.5px;line-height:1.68;color:#d4dadc;margin-top:12px}.brief-body strong{color:#f1eee8}.brief-note{font-size:7px;line-height:1.5;color:#586671;margin:12px 0 0;padding-top:9px;border-top:1px solid var(--line)}.feed-card{flex:1;min-height:0;border-top:1px solid var(--line);padding-top:14px}.feed{margin-top:8px;max-height:470px;overflow:auto}.feed-item{display:block;width:100%;padding:9px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;text-align:left;cursor:pointer}.feed-item:hover,.feed-item.selected{background:linear-gradient(90deg,rgba(242,189,104,.04),transparent)}.feed-top{display:flex;align-items:center;justify-content:space-between}.feed-cat{font-size:6.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--cat);font-weight:900}.feed-time{font:700 6px ui-monospace,monospace;color:#596671}.feed-title{display:block;font-size:11px;font-weight:750;line-height:1.34;margin-top:4px}.feed-meta{display:flex;gap:5px;margin-top:4px;color:#68757f;font-size:6.5px}.feed-meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.feed-severity,.report-badge,.reference-badge,.unmapped{font-size:5.5px;padding:2px 5px;border-radius:999px;font-weight:900}.feed-severity{background:var(--gold);color:#1b1208}.report-badge{color:#d8ceff;border:1px solid rgba(169,139,255,.18)}.reference-badge{color:#ffb4bd;border:1px solid rgba(255,100,118,.18)}.unmapped{color:#74818b;border:1px solid var(--line)}.layer-band{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#070b11}.layer-scroll{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.layer-chip{height:27px;display:flex;align-items:center;gap:5px;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:#0a1017;color:#84919b;font-size:7px;white-space:nowrap;cursor:pointer}.layer-chip i{width:5px;height:5px;border-radius:50%;background:var(--cat)}.layer-chip b{font-size:6px;color:#55636e}.layer-chip.off{opacity:.4}.map-footer{padding:7px 14px 9px;display:flex;justify-content:space-between;gap:10px;background:#070b11}.map-legend{display:flex;gap:10px;flex-wrap:wrap}.legend-item{font-size:6.5px;color:#6d7a85;display:flex;align-items:center;gap:4px}.legend-dot{width:5px;height:5px;border-radius:50%;background:var(--cat)}.map-note{font-size:6px;color:#45525d;text-align:right}.theater-band{display:grid;grid-template-columns:125px minmax(0,1fr);gap:8px;padding:9px 13px 11px;background:#070b11;border-top:1px solid var(--line)}.theater-band-label span{font-size:6.5px;color:#ff7182;font-weight:900;letter-spacing:.12em}.theater-band-label small{display:block;font-size:6px;color:#53616c;margin-top:2px}.theater-strip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.theater-card{min-width:175px;padding:7px 8px;border:1px solid rgba(255,100,118,.09);border-radius:10px;background:#0a0f16;color:inherit;text-align:left;cursor:pointer}.theater-card>i,.theater-card em{display:none}.theater-card b{display:block;font-size:8px}.theater-card small{display:block;font-size:6px;color:#61707a;margin-top:2px}.lower{display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:11px;margin-top:11px}.lower-panel{min-height:210px;padding:13px;border:1px solid var(--line);border-radius:17px;background:#080d13}.timeline{height:140px;display:grid;grid-template-columns:repeat(24,1fr);align-items:end;gap:4px;padding-top:14px}.timeline-col{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}.timeline-bar{width:100%;min-height:2px;border-radius:4px;background:linear-gradient(to top,rgba(100,199,255,.18),rgba(100,199,255,.74))}.timeline-bar.hot{background:linear-gradient(to top,rgba(242,189,104,.2),rgba(255,100,118,.9))}.timeline-col small{font:700 5.5px ui-monospace,monospace;color:#44515b}.priority-list{margin-top:7px}.priority-item{width:100%;display:grid;grid-template-columns:26px 1fr;gap:7px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;text-align:left;cursor:pointer}.priority-rank{font:800 11px ui-monospace,monospace;color:#ff7888}.priority-name{font-size:9px;font-weight:750}.priority-meta{display:block;font-size:6.5px;color:#62707a;margin-top:2px}.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.source-item{padding:8px;border:1px solid var(--line);border-radius:10px;background:#0a1017}.source-title{font-size:8px;font-weight:800}.source-state{display:flex;gap:5px;align-items:center;margin-top:5px;color:#65dfbc;font-size:6.5px;font-weight:900;text-transform:uppercase}.source-state.bad{color:#ff7a6d}.source-state.loading{color:#f2bd68}.source-state i{width:5px;height:5px;border-radius:50%;background:currentColor}.source-detail{font-size:6px;color:#52606b;margin-top:3px}.empty-state{padding:22px 9px;text-align:center;color:#65727d;font-size:8px}.detail-panel{position:fixed;z-index:2200;right:16px;top:80px;width:min(410px,calc(100vw - 32px));padding:17px;border:1px solid rgba(255,255,255,.07);border-radius:17px;background:#0a1017;box-shadow:0 24px 70px rgba(0,0,0,.38);transform:translateX(calc(100% + 38px));transition:transform .18s ease}.detail-panel.open{transform:translateX(0)}.detail-close{position:absolute;right:7px;top:7px;width:32px;height:32px;border:0;background:none;color:#78858f;font-size:21px;cursor:pointer}.detail-tags{display:flex;gap:7px}.detail-tags span,.detail-tags b{font-size:6.5px;text-transform:uppercase;letter-spacing:.08em}.detail-panel h3{font-size:18px;line-height:1.3;margin:9px 30px 8px 0}.detail-meta,.detail-coords{font-size:7.5px;color:#6a7782;line-height:1.5}.detail-coords{font-family:ui-monospace,monospace}.detail-panel p{font-size:10px;line-height:1.6;color:#c0c7cb}.detail-panel a{color:var(--gold);font-size:8.5px;text-decoration:none;font-weight:800}.toast{position:fixed;z-index:2500;left:50%;bottom:18px;transform:translate(-50%,10px);opacity:0;background:#0a1017;border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:7px 10px;color:#d8dddf;font-size:7.5px;transition:.18s}.toast.show{opacity:1;transform:translate(-50%,0)}footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 3px 0;color:#43505b;font-size:6.5px}.map-loading{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:4px;color:#83909a}.map-loading strong{font-size:11px}.map-loading span{font-size:7px}.brief-skeleton,.feed-placeholder,.layer-skeleton{background:linear-gradient(90deg,#111923,#182330,#111923);background-size:230% 100%;animation:shimmer 1.5s linear infinite;border-radius:5px}.brief-skeleton{height:7px;margin:6px 0}.brief-skeleton.wide{width:90%}.brief-skeleton.mid{width:62%}.feed-placeholder{height:48px;margin:4px 0}.layer-skeleton{width:74px;height:25px}@keyframes shimmer{0%{background-position:120% 0}100%{background-position:-120% 0}}
+@media(max-width:1250px){.hero-grid{grid-template-columns:210px minmax(600px,1fr) 280px}.left-rail,.right-rail{padding:14px}.hero-head h2{font-size:27px}.source-grid{grid-template-columns:1fr}}
+@media(max-width:980px){.hero-grid{display:block;min-height:0}.left-rail{display:none}.map-core{height:620px}.right-rail{display:grid;grid-template-columns:1fr 1fr;border-left:0;border-top:1px solid var(--line)}.feed{max-height:320px}.lower{grid-template-columns:1fr}.hero-head{align-items:flex-start;flex-direction:column}.hero-controls{align-items:flex-start;width:100%}.view-pills,.mode-pills,.theme-pills{overflow-x:auto;max-width:100%}}
+@media(max-width:700px){.app-shell{padding:8px}.topbar{height:55px}.brand-block p,.clock-block{display:none}.brand-row h1{font-size:15px}.control-bar{flex-wrap:wrap}.search{flex-basis:100%}.time-pills{flex:1;overflow-x:auto}.severity{flex:1}.map-core{height:500px}.right-rail{grid-template-columns:1fr}.hero-head{padding:14px 12px 11px}.hero-head h2{font-size:24px}.layer-band{padding:7px 9px}.map-footer{flex-direction:column;align-items:flex-start}.map-note{text-align:left}.theater-band{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr 1fr}.detail-panel{top:66px}.live-pill{padding:0 7px}.build-stamp{display:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style></head><body><div class="app-shell" id="app">
+<header class="topbar"><div class="brand-block"><div class="mark"><span></span><b>W</b></div><div><div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 1.00</span></div><p>PUBLIC-SOURCE GLOBAL SITUATIONAL AWARENESS <span class="brand-sep">/</span> CONFLICT · HAZARDS · SPACE</p></div></div><div class="top-actions"><div class="live-pill loading" id="liveStatus"><i></i><span>Connecting</span></div><div class="clock-block"><span>UTC</span><strong id="utcClock">--:--:--</strong></div><button id="refreshBtn" class="icon-btn" type="button">↻</button></div></header>
+<section class="control-bar"><label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Search places, events, sources…" autocomplete="off"></label><div class="time-pills" id="timeFilters"><button type="button" data-hours="6">6h</button><button type="button" data-hours="24">24h</button><button type="button" data-hours="168" class="active">7d</button><button type="button" data-hours="720">30d</button></div><label class="severity">Severity<select id="severityFilter"><option value="1">All</option><option value="2">Watch +</option><option value="3">Elevated +</option><option value="4">High +</option></select></label><button id="resetBtn" class="text-btn" type="button">Reset</button></section>
+<main><section class="hero"><div class="hero-head"><div><span class="kicker">LIVE GLOBAL PICTURE</span><h2>See the world before the noise.</h2><p>One global frame. Quiet hierarchy. Detail only when you ask for it.</p></div><div class="hero-controls"><div class="view-pills" id="mapPresets"><button type="button" data-view="world" class="active">World</button><button type="button" data-view="conus">U.S.</button><button type="button" data-view="mena">MENA</button><button type="button" data-view="europe">Europe</button><button type="button" data-view="pacific">Pacific</button></div><div class="mode-pills" id="mapModes"><button type="button" data-mode="overview" class="active">Overview</button><button type="button" data-mode="conflict">Conflict</button><button type="button" data-mode="hazards">Hazards</button><button type="button" data-mode="signals">Signals</button></div><div class="theme-pills" id="mapThemes"><button type="button" data-theme="midnight" class="active">Midnight</button><button type="button" data-theme="slate">Slate</button><button type="button" data-theme="high">Contrast</button></div></div></div>
+<div class="hero-grid"><aside class="left-rail"><div class="posture-main"><span class="label">Global posture</span><div class="posture-row"><div class="posture-copy"><strong id="postureLabel">Building picture</strong></div><div class="posture-score"><b id="postureScore">--</b><small>/100</small></div></div><div class="posture-track"><i id="postureBar"></i></div></div><div class="metric-stack"><div class="metric"><span>Signals</span><div><strong id="visibleCount">—</strong><small id="visibleNote">syncing</small></div></div><div class="metric"><span>Priority</span><div><strong id="priorityCount">—</strong><small>high + critical</small></div></div><div class="metric"><span>Mapped</span><div><strong id="mappedCount">—</strong><small>geolocated</small></div></div><div class="metric"><span>Sources</span><div><strong id="sourceHealth">0/0</strong><small id="sourceNote">connecting</small></div></div></div><p class="left-note"><strong>Overview</strong> suppresses low-value clutter. Switch to Signals for the deeper mapped layer.</p></aside>
+<div class="map-core"><div class="map-stage"><div class="map-grid"></div><div id="map"><div class="map-loading"><strong>Building global picture</strong><span>Loading vector basemap and live sources…</span></div></div><div class="map-vignette"></div><div class="map-summary"><strong id="mapSignalCount">0</strong><span>signals shown</span></div><div class="conflict-lens"><span>CONFLICT</span><strong id="conflictCount">—</strong><small>theaters</small></div><div class="map-hint" id="mapHint">Select a signal or theater for details</div></div></div>
+<aside class="right-rail"><section class="brief-card"><div class="section-heading"><div><span class="kicker">NOW</span><h2>What matters</h2></div><span class="local-badge">AUTO</span></div><div class="brief-body" id="sitrepText"><div class="brief-skeleton wide"></div><div class="brief-skeleton"></div><div class="brief-skeleton mid"></div></div><p class="brief-note">Automated summary of public-source records. Conflict reference areas are approximate; reporting signals are not independent verification.</p></section><section class="feed-card"><div class="section-heading"><div><span class="kicker">LIVE SIGNALS</span><h2>Top activity</h2></div><span id="feedCount">syncing</span></div><div class="feed" id="eventFeed"><div class="feed-placeholder"></div><div class="feed-placeholder"></div><div class="feed-placeholder"></div></div></section></aside></div>
+<div class="layer-band"><span class="kicker">LAYERS</span><div class="layer-scroll" id="layerList"><div class="layer-skeleton"></div><div class="layer-skeleton"></div><div class="layer-skeleton"></div></div></div><div class="map-footer"><div class="map-legend" id="mapLegend"></div><div class="map-note">Conflict halos are approximate theater references. Reporting markers are not independently verified combat events.</div></div><div class="theater-band"><div class="theater-band-label"><span>THEATER WATCH</span><small>selected ongoing conflicts</small></div><div class="theater-strip" id="theaterStrip"></div></div></section>
+<section class="lower"><article class="lower-panel"><div class="section-heading"><div><span class="kicker">TEMPO</span><h2>24-hour activity</h2></div><span id="tempoLabel">—</span></div><div class="timeline" id="timeline"></div></article><article class="lower-panel"><div class="section-heading"><div><span class="kicker">WATCH FLOOR</span><h2>Priority queue</h2></div><span>ranked</span></div><div class="priority-list" id="priorityQueue"><div class="empty-state">Waiting for current signals…</div></div></article><article class="lower-panel"><div class="section-heading"><div><span class="kicker">COLLECTORS</span><h2>Source health</h2></div><span id="lastRefresh">not synced</span></div><div class="source-grid" id="sourceGrid"><div class="empty-state">Connecting to public sources…</div></div></article></section></main>
+<footer><span>WATCHTOWER · public data only</span><span>Sources can fail, lag, duplicate, or misreport events</span><span>Not an official government product</span></footer>
+<aside class="detail-panel" id="detailDrawer" aria-hidden="true"><button class="detail-close" id="drawerClose" type="button">×</button><div class="detail-tags"><span id="drawerCategory">SIGNAL</span><b id="drawerSeverity">WATCH</b></div><h3 id="drawerTitle">Signal details</h3><div class="detail-meta" id="drawerMeta"></div><div class="detail-coords" id="drawerCoords"></div><p id="drawerSummary"></p><a id="drawerLink" href="#" target="_blank" rel="noopener noreferrer">Open source page ↗</a></aside><div class="toast" id="toast"></div><div class="build-stamp" style="position:fixed;right:9px;bottom:7px;z-index:3000;color:#55636e;font:700 6px ui-monospace,monospace">BUILD 1.00 · VECTOR WATCHFLOOR</div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>(() => {
 'use strict';
 
 const $ = id => document.getElementById(id);
 const state = {
   events: [], sources: [], activeCats: new Set(), hours: 168, minSeverity: 1, query: '',
   map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false, mobileMap: false,
-  mapTheme: 'ops', mapMode: 'overview', tileBase: null, tileLabels: null, conflictLayer: null, glowLayer: null, canvasRenderer: null, progressiveLoading: false, renderTimer: null
+  mapTheme: 'midnight', mapMode: 'overview', baseLayer: null, graticuleLayer: null, labelLayer: null, conflictLayer: null, glowLayer: null, canvasRenderer: null, progressiveLoading: false, renderTimer: null, basemapReady: false
 };
 
 const CAT = {
-  earthquake:{label:'Earthquakes',color:'#f0c36b'}, wildfire:{label:'Wildfires',color:'#ff705f'}, storm:{label:'Tropical systems',color:'#74b8ff'},
-  weather:{label:'Weather alerts',color:'#88c8ff'}, volcano:{label:'Volcanoes',color:'#f39a6d'}, flood:{label:'Floods',color:'#5aa7e8'},
-  conflict:{label:'Conflict theaters',color:'#ff705f'}, security:{label:'Security reporting',color:'#ae92ff'}, space:{label:'Space launches',color:'#66d1b7'}, spaceweather:{label:'Space weather',color:'#c19cff'},
-  landslide:{label:'Landslides',color:'#b79a72'}, drought:{label:'Drought',color:'#d7ae62'}, ice:{label:'Ice',color:'#9bd2e4'},
-  natural:{label:'Natural events',color:'#76c89b'}, incident:{label:'Incidents',color:'#df8f9d'}, temperature:{label:'Temperature',color:'#ef9d6f'},
-  atmosphere:{label:'Atmosphere',color:'#78b5ba'}, snow:{label:'Snow',color:'#d6e8ec'}, water:{label:'Water',color:'#65add3'}
+  earthquake:{label:'Earthquakes',color:'#F5B942'}, wildfire:{label:'Wildfires',color:'#FF6B5F'}, storm:{label:'Tropical systems',color:'#64C7FF'},
+  weather:{label:'Weather alerts',color:'#8AD9FF'}, volcano:{label:'Volcanoes',color:'#FF9B6A'}, flood:{label:'Floods',color:'#4CA9FF'},
+  conflict:{label:'Conflict theaters',color:'#FF5D73'}, security:{label:'Security reporting',color:'#A98BFF'}, space:{label:'Space launches',color:'#61E7C2'}, spaceweather:{label:'Space weather',color:'#D893FF'},
+  landslide:{label:'Landslides',color:'#C8A983'}, drought:{label:'Drought',color:'#D9B96E'}, ice:{label:'Ice',color:'#BFE8F1'},
+  natural:{label:'Natural events',color:'#72D19B'}, incident:{label:'Incidents',color:'#E58EA1'}, temperature:{label:'Temperature',color:'#FF9A72'},
+  atmosphere:{label:'Atmosphere',color:'#7BC9C0'}, snow:{label:'Snow',color:'#D8F4F6'}, water:{label:'Water',color:'#64BDE4'}
 };
-const VIEW = {world:[[18,8],2],conus:[[38.4,-97],4],mena:[[29,42],4],europe:[[50,15],4],pacific:[[18,145],3]};
+const VIEW = {world:[[16,0],1],conus:[[38.5,-97],3],mena:[[29,42],3],europe:[[50,15],3],pacific:[[18,145],2.4]};
 const EONET_MAP = {wildfires:'wildfire',severeStorms:'storm',volcanoes:'volcano',floods:'flood',landslides:'landslide',seaLakeIce:'ice',drought:'drought',dustHaze:'atmosphere',snow:'snow',tempExtremes:'temperature',waterColor:'water',manmade:'incident'};
 const GDACS_MAP = {EQ:'earthquake',TC:'storm',FL:'flood',VO:'volcano',WF:'wildfire',DR:'drought'};
-const TIMEOUT = 8000;
-const THEME = {
-  ops:{
-    cls:'theme-ops',
-    base:{url:'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
-    labels:{url:'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane'}},
-    hint:'Night Ops'
-  },
-  atlas:{
-    cls:'theme-atlas',
-    base:{url:'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
-    labels:{url:'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane'}},
-    hint:'Atlas'
-  },
-  sat:{
-    cls:'theme-sat',
-    base:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'Tiles &copy; Esri'}},
-    labels:{url:'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane',attribution:'Labels &copy; Esri'}},
-    hint:'Satellite'
-  }
+const TIMEOUT = 6500;
+const VECTOR_THEME = {
+  midnight:{ocean:'#060A10',land:'#111A26',border:'#2A3747',label:'#65798A'},
+  slate:{ocean:'#0A0E13',land:'#18202A',border:'#394654',label:'#81909B'},
+  high:{ocean:'#020407',land:'#151A21',border:'#4A5563',label:'#A5B1BA'}
 };
 const GLYPH = {earthquake:'◎',wildfire:'▲',storm:'≈',weather:'!',volcano:'△',flood:'≋',conflict:'✦',security:'◆',space:'✦',spaceweather:'☼',landslide:'▰',drought:'◌',ice:'✧',natural:'●',incident:'✕',temperature:'◍',atmosphere:'◈',snow:'✶',water:'◉'};
 const CONFLICT_REFERENCE = [
@@ -376,31 +168,49 @@ function dedupe(events){const seen=new Set();return events.filter(e=>{if(!e||!e.
 function filtered(){const q=state.query.trim().toLowerCase(),now=Date.now(),win=state.hours*3600000;return state.events.filter(e=>{if(!state.activeCats.has(e.category))return false;if(e.severity<state.minSeverity)return false;const t=parseTime(e.updated);if(!['schedule','reference'].includes(e.kind)&&t&&now-t>win)return false;if(q&&!`${e.title} ${e.region} ${e.source} ${e.summary}`.toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b.severity-a.severity)||(parseTime(b.updated)-parseTime(a.updated)));}
 
 
-function composeShell(){
-  const mapStage=document.querySelector('.map-stage'),overview=document.querySelector('.overview-strip'),controls=document.querySelector('.control-bar'),mapHeader=document.querySelector('.map-header');
-  if(mapStage&&overview&&!overview.classList.contains('hero-metrics')){overview.classList.add('hero-metrics');mapStage.appendChild(overview);}
-  if(mapHeader&&controls&&controls.parentElement!==document.querySelector('.map-card'))mapHeader.insertAdjacentElement('afterend',controls);
-}
+function composeShell(){}
 function scheduleRender(){if(state.renderTimer)return;state.renderTimer=setTimeout(()=>{state.renderTimer=null;renderAll();},90);}
 function mergeProgress(events){const m=new Map(state.events.map(e=>[e.id,e]));for(const e of dedupe(events||[])){m.set(e.id,e);state.activeCats.add(e.category);}state.events=[...m.values()];scheduleRender();}
-function fitWorldView(animate=false){if(!state.map)return;const bounds=L.latLngBounds([[-66,-178],[78,178]]);state.map.invalidateSize(false);const fitZoom=state.map.getBoundsZoom(bounds,false,L.point(22,22));state.map.setMinZoom(Math.max(.5,fitZoom-.5));state.map.fitBounds(bounds,{padding:[18,18],animate,duration:animate?.45:0});}
-
-function setMapTheme(key){
-  const theme=THEME[key]||THEME.ops;
-  state.mapTheme=Object.prototype.hasOwnProperty.call(THEME,key)?key:'ops';
-  if(state.tileBase) state.map.removeLayer(state.tileBase);
-  if(state.tileLabels) state.map.removeLayer(state.tileLabels);
-  state.tileBase=L.tileLayer(theme.base.url,theme.base.options);
-  state.tileLabels=L.tileLayer(theme.labels.url,theme.labels.options);
-  state.tileBase.addTo(state.map);
-  state.tileLabels.addTo(state.map);
-  const mapEl=$('map');
-  mapEl.classList.remove('theme-ops','theme-atlas','theme-sat');
-  mapEl.classList.add(theme.cls);
-  document.querySelectorAll('#mapThemes button').forEach(b=>b.classList.toggle('active',b.dataset.theme===state.mapTheme));
-  $('mapHint').textContent=`${theme.hint} view · ${state.selectedId?'signal selected':'select a marker for details'}`;
+function fitWorldView(animate=false){
+  if(!state.map)return;
+  state.map.invalidateSize(false);
+  state.map.setMinZoom(.35);
+  state.map.fitBounds([[-58,-178],[79,178]],{padding:[20,20],animate,duration:animate?.24:0});
 }
 
+
+function setMapTheme(key){
+  state.mapTheme=Object.prototype.hasOwnProperty.call(VECTOR_THEME,key)?key:'midnight';
+  const t=VECTOR_THEME[state.mapTheme];
+  $('map').style.setProperty('--ocean',t.ocean);
+  if(state.baseLayer)state.baseLayer.setStyle({fillColor:t.land,color:t.border,fillOpacity:1,weight:.55});
+  document.querySelectorAll('#mapThemes button').forEach(b=>b.classList.toggle('active',b.dataset.theme===state.mapTheme));
+}
+function addGraticule(){
+  if(state.graticuleLayer)state.map.removeLayer(state.graticuleLayer);
+  const group=L.layerGroup();
+  const style={color:'#314050',weight:.45,opacity:.30,interactive:false,renderer:state.canvasRenderer};
+  for(let lon=-150;lon<=150;lon+=30){const pts=[];for(let lat=-75;lat<=75;lat+=5)pts.push([lat,lon]);L.polyline(pts,style).addTo(group);}
+  for(let lat=-60;lat<=60;lat+=30){const pts=[];for(let lon=-180;lon<=180;lon+=5)pts.push([lat,lon]);L.polyline(pts,style).addTo(group);}
+  group.addTo(state.map);state.graticuleLayer=group;
+}
+function addContinentLabels(){
+  if(state.labelLayer)state.map.removeLayer(state.labelLayer);
+  const group=L.layerGroup();
+  [['NORTH AMERICA',45,-103],['SOUTH AMERICA',-16,-61],['EUROPE',53,16],['AFRICA',6,21],['ASIA',42,91],['OCEANIA',-25,137]].forEach(([name,lat,lon])=>L.marker([lat,lon],{interactive:false,icon:L.divIcon({className:'continent-label',html:`<span>${name}</span>`,iconSize:[120,20],iconAnchor:[60,10]})}).addTo(group));
+  group.addTo(state.map);state.labelLayer=group;
+}
+async function loadVectorBasemap(){
+  try{
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),7000);
+    const r=await fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json',{signal:ctrl.signal,cache:'force-cache'});clearTimeout(timer);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);const geo=await r.json(),t=VECTOR_THEME[state.mapTheme];
+    state.baseLayer=L.geoJSON(geo,{renderer:state.canvasRenderer,interactive:false,style:{fillColor:t.land,color:t.border,weight:.55,opacity:1,fillOpacity:1}}).addTo(state.map);
+    if(state.baseLayer.bringToBack)state.baseLayer.bringToBack();
+    state.basemapReady=true;
+  }catch(e){state.basemapReady=false;}
+  addContinentLabels();
+}
 
 function scoreEvent(e){
   const age=Math.max(0,(Date.now()-parseTime(e.updated))/3600000);
@@ -470,13 +280,14 @@ function renderAtmosphere(events){
 
 function initMap(){
   if(!window.L){$('map').innerHTML='<div class="map-loading"><strong>Map library unavailable</strong><span>The event stream remains available.</span></div>';return;}
-  state.mobileMap=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-  state.canvasRenderer=L.canvas({padding:.35,tolerance:5});
-  state.map=L.map('map',{worldCopyJump:false,minZoom:.5,maxZoom:11,zoomSnap:.25,zoomDelta:.5,zoomControl:true,preferCanvas:true,renderer:state.canvasRenderer,attributionControl:true,maxBounds:[[-85,-180],[85,180]],maxBoundsViscosity:.82,inertia:true,fadeAnimation:false,markerZoomAnimation:false,zoomAnimation:true}).setView([18,8],2);
-  setMapTheme(state.mapTheme);
+  state.mobileMap=window.matchMedia('(max-width:760px),(pointer:coarse)').matches;
+  $('map').innerHTML='';
+  state.canvasRenderer=L.canvas({padding:.35,tolerance:7});
+  state.map=L.map('map',{crs:L.CRS.EPSG4326,worldCopyJump:false,minZoom:.35,maxZoom:8,zoomSnap:.25,zoomDelta:.5,zoomControl:true,preferCanvas:true,renderer:state.canvasRenderer,attributionControl:false,maxBounds:[[-88,-180],[88,180]],maxBoundsViscosity:1,inertia:false,fadeAnimation:false,markerZoomAnimation:false,zoomAnimation:false}).setView([16,0],1);
+  setMapTheme(state.mapTheme);addGraticule();loadVectorBasemap();
   state.cluster=L.layerGroup().addTo(state.map);state.glowLayer=L.layerGroup().addTo(state.map);state.conflictLayer=L.layerGroup().addTo(state.map);
-  setTimeout(()=>fitWorldView(false),0);
-  if(window.ResizeObserver){let rt;const ro=new ResizeObserver(()=>{clearTimeout(rt);rt=setTimeout(()=>{state.map.invalidateSize(false);},120);});ro.observe($('map'));}
+  if(window.ResizeObserver){const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}
+  setTimeout(()=>fitWorldView(false),20);
 }
 function renderMap(events){
   if(!state.map||!state.cluster)return[];
@@ -493,15 +304,14 @@ function renderMap(events){
   conflicts.forEach(e=>{
     const m=meta(e.category),radius=Math.max(90000,(e.radiusKm||260)*1000);
     const zone=L.circle([e.lat,e.lon],{radius,color:m.color,weight:1.2,opacity:state.mapMode==='conflict'?.34:.24,fillColor:m.color,fillOpacity:state.mapMode==='conflict'?.05:.028,dashArray:'5 10',interactive:false,className:'conflict-zone'});
-    const icon=L.divIcon({className:'conflict-anchor-icon',html:`<div class="conflict-anchor" style="--cat:${m.color}"><span></span><b>✦</b></div>`,iconSize:[26,26],iconAnchor:[13,13]});
-    const marker=L.marker([e.lat,e.lon],{icon,title:e.title,zIndexOffset:-50});
+    const marker=L.circleMarker([e.lat,e.lon],{radius:7,color:'#FFD6CE',weight:1.4,opacity:.9,fillColor:m.color,fillOpacity:.86,renderer:state.canvasRenderer,bubblingMouseEvents:false});
     marker.bindPopup(`<div class="popup-cat">CONFLICT THEATER · REFERENCE</div><div class="popup-title">${esc(e.title)}</div><div class="popup-note">Approximate theater — not a frontline or incident point.</div>`);
     marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.conflictLayer.addLayer(zone);state.conflictLayer.addLayer(marker);
   });
 
   signals.forEach(e=>{
-    const m=meta(e.category),isSec=e.category==='security',radius=e.severity>=5?7:e.severity>=4?6:e.severity>=3?5:4;
-    const marker=L.circleMarker([e.lat,e.lon],{renderer:state.canvasRenderer,radius:radius+(isSec?1:0),color:isSec?'#d6c8ff':m.color,weight:e.severity>=4?1.8:1.15,opacity:.95,fillColor:m.color,fillOpacity:e.severity>=4?.88:.68,bubblingMouseEvents:false});
+    const m=meta(e.category),radius=e.severity>=5?6.8:e.severity>=4?5.8:e.severity>=3?4.8:3.8;
+    const marker=L.circleMarker([e.lat,e.lon],{radius,color:e.category==='security'?'#E1D8FF':'#F7FBFF',weight:e.severity>=4?1.35:.8,opacity:.86,fillColor:m.color,fillOpacity:e.severity>=4?.92:.76,renderer:state.canvasRenderer,bubblingMouseEvents:false});
     marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>${e.kind==='report'?'<div class="popup-note">Reporting signal — not independently verified.</div>':''}`);
     marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.cluster.addLayer(marker);
   });
@@ -551,7 +361,7 @@ function diverseFeed(events,limit=64){
   return out;
 }
 
-function renderFeed(events){const shown=diverseFeed(events,14);const domains=new Set(shown.map(e=>e.category)).size;$('feedCount').textContent=`${shown.length} shown · ${domains} domains`;if(!shown.length){$('eventFeed').innerHTML='<div class="empty-state">No signals match this view.<br>Expand the time window or reset filters.</div>';return;}$('eventFeed').innerHTML=shown.map(e=>{const m=meta(e.category),mapped=e.lat!==null&&e.lon!==null;return`<button type="button" class="feed-item ${state.selectedId===e.id?'selected':''}" data-id="${esc(e.id)}" style="--cat:${m.color}"><i class="feed-dot"></i><span><span class="feed-top"><b class="feed-cat">${esc(m.label)}</b><time class="feed-time">${e.kind==='reference'?'reference':esc(rel(e.updated))}</time></span><span class="feed-title">${esc(e.title)}</span><span class="feed-meta"><span>${esc(e.source||'Unknown')}${e.region?` · ${esc(e.region)}`:''}</span>${e.severity>=4?`<b class="feed-severity">${esc(sevLabel(e.severity))}</b>`:''}${e.kind==='report'?'<b class="report-badge">reported</b>':''}${e.kind==='reference'?'<b class="reference-badge">reference</b>':''}${mapped?'':'<b class="unmapped">feed only</b>'}</span></span></button>`;}).join('');$('eventFeed').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
+function renderFeed(events){const shown=diverseFeed(events,10);const domains=new Set(shown.map(e=>e.category)).size;$('feedCount').textContent=`${shown.length} shown · ${domains} domains`;if(!shown.length){$('eventFeed').innerHTML='<div class="empty-state">No signals match this view.<br>Expand the time window or reset filters.</div>';return;}$('eventFeed').innerHTML=shown.map(e=>{const m=meta(e.category),mapped=e.lat!==null&&e.lon!==null;return`<button type="button" class="feed-item ${state.selectedId===e.id?'selected':''}" data-id="${esc(e.id)}" style="--cat:${m.color}"><i class="feed-dot"></i><span><span class="feed-top"><b class="feed-cat">${esc(m.label)}</b><time class="feed-time">${e.kind==='reference'?'reference':esc(rel(e.updated))}</time></span><span class="feed-title">${esc(e.title)}</span><span class="feed-meta"><span>${esc(e.source||'Unknown')}${e.region?` · ${esc(e.region)}`:''}</span>${e.severity>=4?`<b class="feed-severity">${esc(sevLabel(e.severity))}</b>`:''}${e.kind==='report'?'<b class="report-badge">reported</b>':''}${e.kind==='reference'?'<b class="reference-badge">reference</b>':''}${mapped?'':'<b class="unmapped">feed only</b>'}</span></span></button>`;}).join('');$('eventFeed').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
 function renderSources(){const good=state.sources.filter(s=>s.status==='ok').length,total=state.sources.length,loading=state.sources.filter(s=>s.status==='loading').length;$('sourceHealth').textContent=`${good}/${total||10}`;$('sourceNote').textContent=loading?`${loading} syncing`:total?(good===total?'all nominal':'partial coverage'):'connecting';$('sourceGrid').innerHTML=state.sources.length?state.sources.map(s=>`<div class="source-item"><div class="source-title">${esc(s.name)}</div><div class="source-state ${s.status==='bad'?'bad':s.status==='loading'?'loading':''}"><i></i>${s.status==='ok'?'online':s.status==='bad'?'degraded':'syncing'}</div><div class="source-detail">${s.status==='ok'?`${s.count} records · ${s.ms} ms`:s.status==='bad'?esc(s.error||'No response'):'Awaiting response'}</div></div>`).join(''):'<div class="empty-state">Connecting to public sources…</div>';const chip=$('liveStatus');chip.className=`live-pill ${state.loading?'loading':good<total?'degraded':''}`;chip.querySelector('span').textContent=state.loading?'Connecting':good===total&&total?'Live feeds':good?'Partial feeds':'Offline';}
 function renderPriority(events){const list=events.filter(e=>e.severity>=3&&e.kind!=='reference').slice(0,6);$('priorityQueue').innerHTML=list.length?list.map((e,i)=>`<button type="button" class="priority-item" data-id="${esc(e.id)}"><span class="priority-rank">${String(i+1).padStart(2,'0')}</span><span><span class="priority-name">${esc(e.title)}</span><span class="priority-meta">${esc(sevLabel(e.severity))} · ${esc(e.source)} · ${esc(rel(e.updated))}</span></span></button>`).join(''):'<div class="empty-state">No elevated or higher signals in this view.</div>';$('priorityQueue').querySelectorAll('[data-id]').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.id,true)));}
 function renderTimeline(events){const now=Date.now(),bins=Array.from({length:24},()=>({count:0,high:0}));events.forEach(e=>{if(['schedule','reference'].includes(e.kind))return;const age=(now-parseTime(e.updated))/3600000;if(age>=0&&age<24){const idx=23-Math.floor(age);bins[idx].count++;if(e.severity>=4)bins[idx].high++;}});const max=Math.max(1,...bins.map(b=>b.count));$('tempoLabel').textContent=`${bins.reduce((a,b)=>a+b.count,0)} events`;$('timeline').innerHTML=bins.map((b,i)=>{const h=Math.max(2,Math.round((b.count/max)*96)),hour=new Date(now-(23-i)*3600000).getUTCHours();return`<span class="timeline-col" title="${b.count} signal(s) · ${String(hour).padStart(2,'0')}:00 UTC"><i class="timeline-bar ${b.high?'hot':''}" style="height:${h}px"></i>${i%4===3?`<small>${String(hour).padStart(2,'0')}</small>`:'<small>&nbsp;</small>'}</span>`;}).join('');}
@@ -568,8 +378,4 @@ function clock(){const tick=()=>{$('utcClock').textContent=new Intl.DateTimeForm
 function autoRefresh(){setInterval(()=>{if(!document.hidden)loadAll(false);},10*60*1000);}
 
 composeShell();bind();initMap();clock();autoRefresh();loadAll(false);
-})();
-
-</script>
-</body>
-</html>
+})();</script></body></html>
