@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const state = {
   events: [], sources: [], activeCats: new Set(), hours: 168, minSeverity: 1, query: '',
   map: null, cluster: null, markers: new Map(), selectedId: null, lastRefresh: null, loading: false, mobileMap: false,
-  mapTheme: 'ops', tileBase: null, tileLabels: null, conflictLayer: null
+  mapTheme: 'ops', mapMode: 'overview', tileBase: null, tileLabels: null, conflictLayer: null, glowLayer: null
 };
 
 const CAT = {
@@ -182,6 +182,71 @@ function setMapTheme(key){
   $('mapHint').textContent=`${theme.hint} view · ${state.selectedId?'signal selected':'select a marker for details'}`;
 }
 
+
+function scoreEvent(e){
+  const age=Math.max(0,(Date.now()-parseTime(e.updated))/3600000);
+  return e.severity*20 + Math.max(0,36-age) + (e.kind==='report'?2:0) + (e.category==='security'?3:0);
+}
+function pickByCaps(list,caps,totalCap){
+  const out=[], counts={};
+  for(const e of list){
+    if(totalCap && out.length>=totalCap) break;
+    const cap=caps[e.category] ?? caps['*'] ?? 8;
+    const n=counts[e.category]||0;
+    if(n>=cap) continue;
+    counts[e.category]=n+1;
+    out.push(e);
+  }
+  return out;
+}
+function eventsForMap(events){
+  const mapped=events.filter(e=>validCoord(e.lat,e.lon));
+  const conflictsAll=mapped.filter(e=>e.category==='conflict');
+  const live=mapped.filter(e=>e.category!=='conflict').slice().sort((a,b)=>scoreEvent(b)-scoreEvent(a));
+  let conflicts=conflictsAll, selected=[];
+  if(state.mapMode==='overview'){
+    conflicts=conflictsAll.filter(e=>THEATER_FEATURED.includes(e.id));
+    const src=live.filter(e=>{
+      if(e.category==='security') return e.severity>=3;
+      if(['space','spaceweather'].includes(e.category)) return e.severity>=2;
+      if(['storm','earthquake','wildfire'].includes(e.category)) return e.severity>=2;
+      return e.severity>=3;
+    });
+    selected=pickByCaps(src,{weather:8,earthquake:10,storm:8,wildfire:7,security:8,space:5,spaceweather:5,flood:4,volcano:3,natural:4,temperature:4,atmosphere:4,landslide:3,ice:3,snow:3,water:3,incident:3,'*':3},78);
+  } else if(state.mapMode==='conflict'){
+    const src=live.filter(e=>e.category==='security' || ['storm','earthquake','wildfire'].includes(e.category)&&e.severity>=4 || e.severity>=4);
+    selected=pickByCaps(src,{security:18,storm:8,earthquake:8,wildfire:6,weather:6,spaceweather:4,'*':3},72);
+  } else if(state.mapMode==='hazards'){
+    conflicts=[];
+    const src=live.filter(e=>!['security'].includes(e.category) && e.severity>=2);
+    selected=pickByCaps(src,{weather:18,earthquake:18,storm:12,wildfire:10,flood:8,volcano:6,spaceweather:6,space:4,temperature:6,atmosphere:6,ice:5,snow:4,water:4,incident:4,'*':5},120);
+  } else {
+    conflicts=conflictsAll;
+    selected=live.slice(0,state.mobileMap?220:260);
+  }
+  return {mapped, conflicts, signals:selected, visible:[...conflicts,...selected]};
+}
+function renderAtmosphere(events){
+  if(!state.glowLayer) return;
+  state.glowLayer.clearLayers();
+  if(state.mapMode==='signals') return;
+  const live=events.filter(e=>e.category!=='conflict' && e.kind!=='reference');
+  const bins=new Map(), step=state.mapMode==='overview'?18:14;
+  for(const e of live){
+    const lat=Math.round(e.lat/step)*step, lon=Math.round(e.lon/step)*step;
+    const key=`${lat}|${lon}`;
+    const b=bins.get(key)||{lat,lon,count:0,security:0,max:0};
+    b.count++; if(e.category==='security') b.security++; if(e.severity>b.max) b.max=e.severity;
+    bins.set(key,b);
+  }
+  [...bins.values()].sort((a,b)=>b.count-a.count).slice(0,state.mapMode==='overview'?8:10).forEach(b=>{
+    const conflictish=b.security>=Math.max(2,Math.floor(b.count/2));
+    const color=conflictish?'#ff8a6c':'#77c6ff';
+    const radius=(state.mapMode==='overview'?220000:160000)+(b.count*32000)+(b.max*18000);
+    L.circle([b.lat,b.lon],{radius,stroke:false,fillColor:color,fillOpacity:conflictish?.07:.055,interactive:false,className:'heat-bloom'}).addTo(state.glowLayer);
+  });
+}
+
 function initMap(){
   if(!window.L){$('map').innerHTML='<div class="map-loading"><strong>Map library unavailable</strong><span>The event stream remains available.</span></div>';return;}
   state.mobileMap=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
@@ -205,41 +270,50 @@ function initMap(){
     });
   }else state.cluster=L.layerGroup();
   state.map.addLayer(state.cluster);
+  state.glowLayer=L.layerGroup().addTo(state.map);
   state.conflictLayer=L.layerGroup().addTo(state.map);
   if(window.ResizeObserver){const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}
 }
 function renderMap(events){
-  if(!state.map||!state.cluster)return;
-  state.cluster.clearLayers();state.markers.clear();if(state.conflictLayer)state.conflictLayer.clearLayers();
-  const mapped=events.filter(e=>validCoord(e.lat,e.lon));
-  const conflicts=mapped.filter(e=>e.category==='conflict');
-  const signals=mapped.filter(e=>e.category!=='conflict');
+  if(!state.map||!state.cluster)return[];
+  state.cluster.clearLayers();state.markers.clear();
+  if(state.glowLayer)state.glowLayer.clearLayers();
+  if(state.conflictLayer)state.conflictLayer.clearLayers();
+  const pack=eventsForMap(events);
+  const mapped=pack.visible.filter(e=>validCoord(e.lat,e.lon));
+  const conflicts=pack.conflicts;
+  const signals=pack.signals;
   $('mappedCount').textContent=String(mapped.length);$('mapSignalCount').textContent=String(signals.length);$('conflictCount').textContent=String(conflicts.length);
+  renderAtmosphere(signals);
 
   conflicts.forEach(e=>{
     const m=meta(e.category),radius=Math.max(90000,(e.radiusKm||260)*1000);
-    const zone=L.circle([e.lat,e.lon],{radius,color:m.color,weight:1.1,opacity:.35,fillColor:m.color,fillOpacity:.035,dashArray:'5 9',interactive:false,className:'conflict-zone'});
+    const zone=L.circle([e.lat,e.lon],{radius,color:m.color,weight:1.2,opacity:state.mapMode==='conflict'?.34:.24,fillColor:m.color,fillOpacity:state.mapMode==='conflict'?.05:.028,dashArray:'5 10',interactive:false,className:'conflict-zone'});
     const icon=L.divIcon({className:'conflict-anchor-icon',html:`<div class="conflict-anchor" style="--cat:${m.color}"><span></span><b>✦</b></div>`,iconSize:[26,26],iconAnchor:[13,13]});
     const marker=L.marker([e.lat,e.lon],{icon,title:e.title,zIndexOffset:-50});
     marker.bindPopup(`<div class="popup-cat">CONFLICT THEATER · REFERENCE</div><div class="popup-title">${esc(e.title)}</div><div class="popup-note">Approximate theater — not a frontline or incident point.</div>`);
     marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.conflictLayer.addLayer(zone);state.conflictLayer.addLayer(marker);
   });
 
-  signals.slice(0,state.mobileMap?500:650).forEach(e=>{
+  signals.forEach(e=>{
     const m=meta(e.category);let marker;
     if(state.mobileMap){
       const radius=e.severity>=5?7:e.severity>=4?6:e.severity>=3?5:4;
-      marker=L.circleMarker([e.lat,e.lon],{radius,color:m.color,weight:e.severity>=4?2.4:1.5,opacity:.98,fillColor:m.color,fillOpacity:e.severity>=4?.9:.72,bubblingMouseEvents:false,className:`touch-signal ${e.category==='security'?'security-touch':''}`});
+      marker=L.circleMarker([e.lat,e.lon],{radius,color:m.color,weight:e.severity>=4?2.3:1.4,opacity:.96,fillColor:m.color,fillOpacity:e.severity>=4?.88:.65,bubblingMouseEvents:false,className:`touch-signal ${e.category==='security'?'security-touch':''}`});
     }else{
       const glyph=GLYPH[e.category]||'●';
       const markerClass=e.category==='security'?'signal-marker security-marker':`signal-marker s${e.severity}`;
-      const icon=L.divIcon({className:'signal-icon',html:`<div class="${markerClass} s${e.severity}" style="--cat:${m.color}"><span>${glyph}</span></div>`,iconSize:[22,22],iconAnchor:[11,11]});
+      const size=state.mapMode==='overview'?18:20;
+      const anchor=Math.round(size/2);
+      const icon=L.divIcon({className:'signal-icon',html:`<div class="${markerClass} s${e.severity}" style="--cat:${m.color};width:${size}px;height:${size}px"><span>${glyph}</span></div>`,iconSize:[size,size],iconAnchor:[anchor,anchor]});
       marker=L.marker([e.lat,e.lon],{icon,title:e.title});
     }
     marker.bindPopup(`<div class="popup-cat">${esc(m.label)} · ${esc(sevLabel(e.severity))}</div><div class="popup-title">${esc(e.title)}</div>${e.kind==='report'?'<div class="popup-note">Reporting signal — not independently verified.</div>':''}`);
     marker.on('click',()=>selectEvent(e.id,false));state.markers.set(e.id,marker);state.cluster.addLayer(marker);
   });
-  $('mapHint').textContent=state.mobileMap?'Pinch or use +/- to zoom · tap a signal for details':'Select a signal or conflict theater for details';
+  const modeLabel=state.mapMode==='overview'?'hero overview':state.mapMode==='conflict'?'conflict emphasis':state.mapMode==='hazards'?'hazard emphasis':'full signal layer';
+  $('mapHint').textContent=state.mobileMap?`Pinch to zoom · ${modeLabel}`:`${modeLabel} · select a signal or theater for details`;
+  return pack.visible;
 }
 function renderTheaterStrip(events){
   const refs=THEATER_FEATURED.map(id=>events.find(e=>e.id===id)||state.events.find(e=>e.id===id)).filter(Boolean);
@@ -291,11 +365,11 @@ function buildSitrep(events){if(!events.length)return'No signals match the curre
 function posture(events){let score=0,now=Date.now();events.forEach(e=>{if(e.kind==='reference')return;const age=Math.max(0,(now-parseTime(e.updated))/3600000),decay=Math.max(.12,1-age/Math.max(24,state.hours));score+=e.severity*decay;});score=clamp(Math.round(score/2.8),0,100);const label=score>=75?'Critical':score>=55?'Heightened':score>=30?'Elevated':'Routine';$('postureScore').textContent=String(score);$('postureLabel').textContent=label;$('postureBar').style.width=`${score}%`;}
 function selectEvent(id,focusMap){const e=state.events.find(x=>x.id===id);if(!e)return;state.selectedId=id;const m=meta(e.category);$('drawerCategory').textContent=m.label;$('drawerCategory').style.color=m.color;$('drawerSeverity').textContent=sevLabel(e.severity);$('drawerTitle').textContent=e.title;$('drawerMeta').textContent=`${e.source||'Unknown source'} · ${e.region||'Region not specified'} · ${e.kind==='reference'?'reference layer':rel(e.updated)}`;$('drawerCoords').textContent=e.lat!==null&&e.lon!==null?`${e.lat.toFixed(3)}, ${e.lon.toFixed(3)}${e.kind==='reference'?' · approximate theater center':` · ${new Date(parseTime(e.updated)).toISOString().replace('.000','')}`}`:'Unmapped / feed-only signal';$('drawerSummary').textContent=e.summary||'No additional summary supplied by source.';const a=$('drawerLink');if(e.url){a.href=e.url;a.style.display='inline-flex';}else a.style.display='none';$('detailDrawer').classList.add('open');$('detailDrawer').setAttribute('aria-hidden','false');$('mapHint').textContent=`Selected · ${e.title.slice(0,65)}`;if(focusMap&&state.map&&e.lat!==null&&e.lon!==null){const targetZoom=e.kind==='reference'?(e.radiusKm>=700?3:e.radiusKm>=350?4:5):Math.max(state.map.getZoom(),5);state.map.flyTo([e.lat,e.lon],targetZoom,{duration:.65});const marker=state.markers.get(e.id);if(marker)setTimeout(()=>marker.openPopup(),700);}renderFeed(filtered());}
 function closeDrawer(){$('detailDrawer').classList.remove('open');$('detailDrawer').setAttribute('aria-hidden','true');state.selectedId=null;$('mapHint').textContent='Select a signal or conflict theater for details';renderFeed(filtered());}
-function renderAll(){renderLayers();const events=filtered();$('visibleCount').textContent=String(events.filter(e=>e.kind!=='reference').length);$('visibleNote').textContent=state.hours<24?`${state.hours} hour window`:state.hours===24?'24 hour window':state.hours===168?'7 day window':'30 day window';$('priorityCount').textContent=String(events.filter(e=>e.severity>=4&&e.kind!=='reference').length);renderMap(events);renderLegend(events);renderTheaterStrip(events);renderFeed(events);renderPriority(events);renderTimeline(events);$('sitrepText').innerHTML=buildSitrep(events);posture(events);}
+function renderAll(){renderLayers();const events=filtered();$('visibleCount').textContent=String(events.filter(e=>e.kind!=='reference').length);$('visibleNote').textContent=state.hours<24?`${state.hours} hour window`:state.hours===24?'24 hour window':state.hours===168?'7 day window':'30 day window';$('priorityCount').textContent=String(events.filter(e=>e.severity>=4&&e.kind!=='reference').length);const mapVisible=renderMap(events)||events;renderLegend(mapVisible);renderTheaterStrip(events);renderFeed(events);renderPriority(events);renderTimeline(events);$('sitrepText').innerHTML=buildSitrep(events);posture(events);}
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2400);}
 
 async function loadAll(manual=false){if(state.loading)return;state.loading=true;state.sources=[];renderSources();if(manual)toast('Refreshing public sources…');const jobs=[source('USGS',getUSGS),source('NASA EONET',getEONET),source('NOAA / NWS',getNWS),source('NOAA / NHC',getNHC),source('GDACS',getGDACS),source('NOAA SWPC',getSWPC),source('NASA DONKI',getDONKI),source('Launch Library 2',getLaunches),source('GDELT News',getGDELT),source('GDELT Conflict Map',getGDELTGeo)];const chunks=await Promise.all(jobs);let events=dedupe([...getConflictReferences(),...chunks.flat()]);if(!events.length){events=FALLBACK;toast('Live feeds unavailable — clearly labeled demo fallback active');}state.events=events;state.activeCats.clear();events.forEach(e=>state.activeCats.add(e.category));state.lastRefresh=new Date();state.loading=false;renderSources();renderAll();$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC`;if(manual)toast(`${events.length} signals loaded`);}
-function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));if(state.map)state.map.setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.6});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));document.querySelectorAll('#mapThemes [data-theme]').forEach(b=>b.addEventListener('click',()=>{if(!state.map)return;setMapTheme(b.dataset.theme||'ops');}));}
+function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));state.mapMode='overview';if(state.map)state.map.setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x.dataset.mode==='overview'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.6});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));document.querySelectorAll('#mapThemes [data-theme]').forEach(b=>b.addEventListener('click',()=>{if(!state.map)return;setMapTheme(b.dataset.theme||'ops');}));document.querySelectorAll('#mapModes [data-mode]').forEach(b=>b.addEventListener('click',()=>{state.mapMode=b.dataset.mode||'overview';document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));}
 function clock(){const tick=()=>{$('utcClock').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());if(state.lastRefresh)$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC · ${rel(state.lastRefresh.toISOString())}`;};tick();setInterval(tick,1000);}
 function autoRefresh(){setInterval(()=>{if(!document.hidden)loadAll(false);},10*60*1000);}
 
