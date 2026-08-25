@@ -290,7 +290,20 @@ footer{max-width:none!important;margin:18px clamp(16px,1.65vw,34px) 0!important}
 @media(max-width:1179px){.intel-column{grid-area:auto!important;justify-self:stretch!important;width:auto!important;margin:16px 0 0!important;position:static!important;display:grid!important;grid-template-columns:1fr 1fr!important;pointer-events:auto!important}.feed-card{height:420px!important}.map-stage{height:620px!important;min-height:560px!important}.map-toolbar{max-width:none!important}.insight-grid{grid-template-columns:1fr!important}}
 @media(max-width:760px){main{padding:10px!important}.topbar{margin:8px 10px 12px!important}.overview-strip{grid-template-columns:1fr 1fr!important;padding:5px!important}.overview-strip .posture-card{grid-column:1/-1!important}.overview-strip .stat:before{display:none}.control-bar{position:relative!important;top:auto!important}.map-card{border-radius:22px!important}.map-header{min-height:0!important;padding:17px 15px 13px!important}.map-header h2{font-size:30px!important}.map-toolbar{width:100%!important}.map-stage{height:500px!important;min-height:500px!important}.intel-column{display:block!important}.brief-card{margin-bottom:10px!important}.feed-card{height:420px!important}.insight-grid{grid-template-columns:1fr!important}}
 
-  </style>
+  
+/* ===== v0.82 performance + single-world map ===== */
+.app-shell:before,.app-shell:after{display:none!important}
+.overview-strip,.overview-strip .posture-card,.overview-strip .stat,.control-bar,.map-card,.brief-card,.feed-card,.insight-card,.source-item,.priority-item{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.topbar{backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+.map-summary,.map-hint,.conflict-lens{backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important}
+.map-stage:before{filter:none!important;opacity:.5!important}
+.map-grid{opacity:.08!important}
+.insight-grid{content-visibility:auto;contain-intrinsic-size:420px;contain:layout paint style}
+.theater-band{content-visibility:auto;contain-intrinsic-size:96px;contain:layout paint style}
+.feed-item,.priority-item,.theater-card{will-change:auto!important}
+.leaflet-zoom-animated{will-change:transform}
+@media(prefers-reduced-motion:reduce){.leaflet-zoom-animated{transition:none!important}}
+</style>
 </head>
 <body>
 <div class="app-shell" id="app">
@@ -298,7 +311,7 @@ footer{max-width:none!important;margin:18px clamp(16px,1.65vw,34px) 0!important}
     <div class="brand-block">
       <div class="mark" aria-hidden="true"><span></span><b>W</b></div>
       <div>
-        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.81</span></div>
+        <div class="brand-row"><h1>WATCHTOWER</h1><span class="version">BETA 0.82</span></div>
         <p>Public-source global situational awareness <span class="brand-sep">/</span> hazards · conflict · space · watchfloor</p>
       </div>
     </div>
@@ -457,7 +470,7 @@ footer{max-width:none!important;margin:18px clamp(16px,1.65vw,34px) 0!important}
   </aside>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <div id="buildStamp" style="position:fixed;right:12px;bottom:10px;z-index:3000;padding:5px 8px;border-radius:999px;background:rgba(5,10,16,.82);border:1px solid rgba(124,224,255,.22);color:#9fdff2;font:700 9px/1.2 ui-monospace,monospace;letter-spacing:.06em;backdrop-filter:blur(8px);pointer-events:none">BUILD 0.81 · INLINE</div>
+  <div id="buildStamp" style="position:fixed;right:12px;bottom:10px;z-index:3000;padding:5px 8px;border-radius:999px;background:rgba(5,10,16,.82);border:1px solid rgba(124,224,255,.22);color:#9fdff2;font:700 9px/1.2 ui-monospace,monospace;letter-spacing:.06em;backdrop-filter:blur(8px);pointer-events:none">BUILD 0.82 · INLINE · PERF</div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -487,20 +500,20 @@ const TIMEOUT = 13000;
 const THEME = {
   ops:{
     cls:'theme-ops',
-    base:{url:'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
-    labels:{url:'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,pane:'overlayPane'}},
+    base:{url:'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
+    labels:{url:'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane'}},
     hint:'Night Ops'
   },
   atlas:{
     cls:'theme-atlas',
-    base:{url:'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
-    labels:{url:'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,pane:'overlayPane'}},
+    base:{url:'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'&copy; OpenStreetMap &copy; CARTO'}},
+    labels:{url:'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',options:{subdomains:'abcd',maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane'}},
     hint:'Atlas'
   },
   sat:{
     cls:'theme-sat',
-    base:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,attribution:'Tiles &copy; Esri'}},
-    labels:{url:'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,pane:'overlayPane',attribution:'Labels &copy; Esri'}},
+    base:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,attribution:'Tiles &copy; Esri'}},
+    labels:{url:'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',options:{maxZoom:19,noWrap:true,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:2,pane:'overlayPane',attribution:'Labels &copy; Esri'}},
     hint:'Satellite'
   }
 };
@@ -711,11 +724,22 @@ function renderAtmosphere(events){
   });
 }
 
+function enforceSingleWorldZoom(){
+  if(!state.map)return;
+  const width=Math.max(320,state.map.getSize().x||window.innerWidth||1024);
+  // Web Mercator is 256 px wide at z0. Keep one world at least as wide as the map viewport.
+  const floor=state.mobileMap?1.25:2;
+  const minZ=Math.max(floor,Math.ceil(Math.log2(width/256)*4)/4);
+  state.map.setMinZoom(Math.min(4,minZ));
+  if(state.map.getZoom()<state.map.getMinZoom())state.map.setZoom(state.map.getMinZoom(),{animate:false});
+}
+
 function initMap(){
   if(!window.L){$('map').innerHTML='<div class="map-loading"><strong>Map library unavailable</strong><span>The event stream remains available.</span></div>';return;}
   state.mobileMap=window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-  state.map=L.map('map',{worldCopyJump:true,minZoom:state.mobileMap?1:2,maxZoom:11,zoomControl:true,preferCanvas:true,attributionControl:true}).setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);
+  state.map=L.map('map',{worldCopyJump:false,minZoom:1,maxZoom:11,zoomSnap:.25,zoomDelta:.5,zoomControl:true,preferCanvas:true,attributionControl:true,maxBounds:[[-84.8,-179.8],[84.8,179.8]],maxBoundsViscosity:1,inertia:true}).setView(VIEW.world[0],state.mobileMap?1.5:3);
   setMapTheme(state.mapTheme);
+  enforceSingleWorldZoom();
 
   // Touch devices intentionally do NOT use MarkerCluster. Direct canvas markers avoid
   // spiderfy/centroid tap behavior entirely and keep pinch/drag navigation predictable.
@@ -724,6 +748,8 @@ function initMap(){
   }else if(window.L.markerClusterGroup){
     state.cluster=L.markerClusterGroup({
       showCoverageOnHover:false,
+      animate:false,
+      animateAddingMarkers:false,
       zoomToBoundsOnClick:true,
       spiderfyOnMaxZoom:false,
       spiderfyOnEveryZoom:false,
@@ -736,7 +762,7 @@ function initMap(){
   state.map.addLayer(state.cluster);
   state.glowLayer=L.layerGroup().addTo(state.map);
   state.conflictLayer=L.layerGroup().addTo(state.map);
-  if(window.ResizeObserver){const ro=new ResizeObserver(()=>state.map.invalidateSize(false));ro.observe($('map'));}
+  if(window.ResizeObserver){let rt;const ro=new ResizeObserver(()=>{clearTimeout(rt);rt=setTimeout(()=>{state.map.invalidateSize(false);enforceSingleWorldZoom();},90);});ro.observe($('map'));}
 }
 function renderMap(events){
   if(!state.map||!state.cluster)return[];
@@ -833,7 +859,7 @@ function renderAll(){renderLayers();const events=filtered();$('visibleCount').te
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2400);}
 
 async function loadAll(manual=false){if(state.loading)return;state.loading=true;state.sources=[];renderSources();if(manual)toast('Refreshing public sources…');const jobs=[source('USGS',getUSGS),source('NASA EONET',getEONET),source('NOAA / NWS',getNWS),source('NOAA / NHC',getNHC),source('GDACS',getGDACS),source('NOAA SWPC',getSWPC),source('NASA DONKI',getDONKI),source('Launch Library 2',getLaunches),source('GDELT News',getGDELT),source('GDELT Conflict Map',getGDELTGeo)];const chunks=await Promise.all(jobs);let events=dedupe([...getConflictReferences(),...chunks.flat()]);if(!events.length){events=FALLBACK;toast('Live feeds unavailable — clearly labeled demo fallback active');}state.events=events;state.activeCats.clear();events.forEach(e=>state.activeCats.add(e.category));state.lastRefresh=new Date();state.loading=false;renderSources();renderAll();$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC`;if(manual)toast(`${events.length} signals loaded`);}
-function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});$('searchInput').addEventListener('input',e=>{state.query=e.target.value;renderAll();});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));state.mapMode='overview';if(state.map)state.map.setView(VIEW.world[0],state.mobileMap?1:VIEW.world[1]);document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x.dataset.mode==='overview'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map)state.map.flyTo(v[0],v[1],{duration:.6});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));document.querySelectorAll('#mapThemes [data-theme]').forEach(b=>b.addEventListener('click',()=>{if(!state.map)return;setMapTheme(b.dataset.theme||'ops');}));document.querySelectorAll('#mapModes [data-mode]').forEach(b=>b.addEventListener('click',()=>{state.mapMode=b.dataset.mode||'overview';document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));}
+function bind(){document.querySelectorAll('#timeFilters [data-hours]').forEach(b=>b.addEventListener('click',()=>{state.hours=Number(b.dataset.hours);document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));$('severityFilter').addEventListener('change',e=>{state.minSeverity=Number(e.target.value)||1;renderAll();});let searchTimer;$('searchInput').addEventListener('input',e=>{state.query=e.target.value;clearTimeout(searchTimer);searchTimer=setTimeout(renderAll,140);});$('resetBtn').addEventListener('click',()=>{state.hours=168;state.minSeverity=1;state.query='';$('searchInput').value='';$('severityFilter').value='1';document.querySelectorAll('#timeFilters button').forEach(x=>x.classList.toggle('active',x.dataset.hours==='168'));state.activeCats.clear();state.events.forEach(e=>state.activeCats.add(e.category));state.mapMode='overview';if(state.map)state.map.setView(VIEW.world[0],Math.max(state.map.getMinZoom(),state.mobileMap?1.5:3),{animate:false});document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x.dataset.view==='world'));document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x.dataset.mode==='overview'));renderAll();toast('View reset');});$('refreshBtn').addEventListener('click',()=>loadAll(true));$('drawerClose').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});document.querySelectorAll('#mapPresets [data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEW[b.dataset.view]||VIEW.world;if(state.map){const z=b.dataset.view==='world'?Math.max(state.map.getMinZoom(),state.mobileMap?1.5:3):v[1];state.map.flyTo(v[0],z,{duration:.35});}document.querySelectorAll('#mapPresets button').forEach(x=>x.classList.toggle('active',x===b));}));document.querySelectorAll('#mapThemes [data-theme]').forEach(b=>b.addEventListener('click',()=>{if(!state.map)return;setMapTheme(b.dataset.theme||'ops');}));document.querySelectorAll('#mapModes [data-mode]').forEach(b=>b.addEventListener('click',()=>{state.mapMode=b.dataset.mode||'overview';document.querySelectorAll('#mapModes button').forEach(x=>x.classList.toggle('active',x===b));renderAll();}));}
 function clock(){const tick=()=>{$('utcClock').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date());if(state.lastRefresh)$('lastRefresh').textContent=`sync ${state.lastRefresh.toISOString().slice(11,19)} UTC · ${rel(state.lastRefresh.toISOString())}`;};tick();setInterval(tick,1000);}
 function autoRefresh(){setInterval(()=>{if(!document.hidden)loadAll(false);},10*60*1000);}
 
